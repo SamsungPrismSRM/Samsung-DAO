@@ -26,11 +26,10 @@ function RoleCard({
 }) {
   return (
     <div
-      className={`flex-1 bg-white rounded-xl p-6 flex flex-col gap-4 relative transition-all hover:-translate-y-0.5 ${
-        primary
+      className={`flex-1 min-w-[260px] bg-white rounded-xl p-5 sm:p-6 flex flex-col gap-4 relative transition-all hover:-translate-y-0.5 ${primary
           ? "border-[1.5px] border-samsung-primary"
           : "border-thin border-gray-200 hover:border-gray-300"
-      }`}
+        }`}
     >
       {badge && (
         <span className="absolute -top-2.5 right-4 bg-samsung-primary text-white text-[10px] font-semibold px-2.5 py-0.5 rounded-full font-mono uppercase tracking-wide">
@@ -57,11 +56,10 @@ function RoleCard({
       </div>
       <Link
         href={href}
-        className={`w-full text-center py-2.5 rounded-lg text-[13px] font-semibold transition-colors no-underline ${
-          primary
+        className={`w-full text-center py-2.5 rounded-lg text-[13px] font-semibold transition-colors no-underline ${primary
             ? "bg-samsung-primary text-white hover:bg-samsung-dark"
             : "bg-transparent border border-gray-200 text-gray-700 hover:border-gray-300"
-        }`}
+          }`}
         style={!primary ? { borderColor: `${accent}40`, color: accent } : {}}
       >
         {buttonLabel}
@@ -77,18 +75,18 @@ export default function HomePage() {
       <StatusBar />
 
       {/* Hero */}
-      <section className="py-16 px-6 max-w-[960px] mx-auto text-center">
+      <section className="py-10 sm:py-16 px-4 sm:px-6 max-w-[960px] mx-auto text-center">
         <span className="eyebrow text-samsung-primary">SAMSUNG PRISM · DAO GOVERNANCE</span>
-        <h1 className="text-4xl font-bold text-gray-900 tracking-tight mt-3 mb-4 leading-tight">
+        <h1 className="text-2xl sm:text-4xl font-bold text-gray-900 tracking-tight mt-3 mb-4 leading-tight">
           Decentralised governance for Samsung employees
         </h1>
-        <p className="text-[15px] text-gray-500 max-w-[580px] mx-auto leading-relaxed">
+        <p className="text-[14px] sm:text-[15px] text-gray-500 max-w-[580px] mx-auto leading-relaxed">
           Participate in elections, proposals, and giveaways powered by Hedera blockchain.
           Secure, transparent, and built for Samsung&apos;s internal ecosystem.
         </p>
 
         {/* Stats */}
-        <div className="flex justify-center gap-8 mt-8 py-4 border-y border-thin border-gray-200">
+        <div className="grid grid-cols-2 sm:flex sm:justify-center gap-4 sm:gap-8 mt-8 py-4 border-y border-thin border-gray-200">
           {[
             { value: "3", label: "Portal roles" },
             { value: "HTS", label: "Token standard" },
@@ -104,8 +102,8 @@ export default function HomePage() {
       </section>
 
       {/* Role Cards */}
-      <section className="px-6 pb-12 max-w-[960px] mx-auto">
-        <div className="flex gap-4">
+      <section className="px-4 sm:px-6 pb-12 max-w-[960px] mx-auto">
+        <div className="flex flex-col md:flex-row gap-4">
           <RoleCard
             icon={<Shield className="w-5 h-5 text-danger" />}
             title="Admin"
@@ -139,7 +137,7 @@ export default function HomePage() {
       </section>
 
       {/* Bottom Info Strip */}
-      <section className="px-6 pb-12 max-w-[960px] mx-auto flex gap-4">
+      <section className="px-4 sm:px-6 pb-12 max-w-[960px] mx-auto flex flex-col md:flex-row gap-4">
         {/* Login Flow */}
         <div className="card flex-1">
           <span className="eyebrow">MEMBER LOGIN FLOW</span>
@@ -179,19 +177,18 @@ export default function HomePage() {
             { n: 5, label: "Security & Governance", yours: false },
             { n: 6, label: "Hedera Native Services", yours: false },
           ].map((l) => (
-            <div key={l.n} className="flex items-center gap-2.5 py-1">
+            <div key={l.n} className="flex items-center gap-2 sm:gap-2.5 py-1 flex-wrap">
               <span
-                className={`font-mono text-[11px] font-semibold px-2 py-0.5 rounded text-center min-w-[28px] ${
-                  l.yours ? "text-samsung-primary bg-samsung-light" : "text-gray-400 bg-gray-100"
-                }`}
+                className={`font-mono text-[11px] font-semibold px-2 py-0.5 rounded text-center min-w-[28px] shrink-0 ${l.yours ? "text-samsung-primary bg-samsung-light" : "text-gray-400 bg-gray-100"
+                  }`}
               >
                 L{l.n}
               </span>
-              <span className={`text-[13px] ${l.yours ? "text-gray-700 font-medium" : "text-gray-400"}`}>
+              <span className={`text-[12px] sm:text-[13px] ${l.yours ? "text-gray-700 font-medium" : "text-gray-400"}`}>
                 {l.label}
               </span>
               {l.yours && (
-                <span className="font-mono text-[10px] font-medium text-samsung-primary bg-samsung-light px-1.5 rounded">
+                <span className="font-mono text-[9px] sm:text-[10px] font-medium text-samsung-primary bg-samsung-light px-1.5 rounded">
                   YOUR TEAM
                 </span>
               )}
@@ -201,7 +198,7 @@ export default function HomePage() {
       </section>
 
       {/* Footer */}
-      <footer className="bg-gray-900 py-5 px-6 flex justify-between items-center">
+      <footer className="bg-gray-900 py-5 px-4 sm:px-6 flex flex-col sm:flex-row justify-between items-center gap-2">
         <span className="text-xs text-white/50">Samsung DAO · PRISM Research · Hedera Testnet</span>
         <span className="font-mono text-[11px] text-white/35">© 2025 Samsung Electronics · Internal use only</span>
       </footer>
