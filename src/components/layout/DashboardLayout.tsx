@@ -14,7 +14,9 @@ export function DashboardLayout({ role, children }: DashboardLayoutProps) {
       <StatusBar />
       <div className="flex">
         <Sidebar role={role} />
-        <main className="flex-1 p-6 max-w-[960px]">{children}</main>
+        <main className="flex-1 p-4 sm:p-6 max-w-[960px] min-w-0">
+          {children}
+        </main>
       </div>
     </div>
   );

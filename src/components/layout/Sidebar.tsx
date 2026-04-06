@@ -1,7 +1,9 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { Menu, X } from "lucide-react";
 
 interface SidebarItem {
   id: string;
@@ -117,12 +119,12 @@ interface SidebarProps {
   role: "ADMIN" | "COUNCIL" | "MEMBER";
 }
 
-export function Sidebar({ role }: SidebarProps) {
+function SidebarContent({ role, onNavigate }: SidebarProps & { onNavigate?: () => void }) {
   const pathname = usePathname();
   const sections = sectionMap[role] || memberSections;
 
   return (
-    <aside className="w-[200px] min-h-[calc(100vh-84px)] bg-white border-r border-thin border-gray-200 py-4 sticky top-[84px] self-start shrink-0">
+    <>
       {sections.map((section) => (
         <div key={section.title} className="mb-4">
           <div className="px-4 mb-1.5 font-mono text-[10px] font-medium uppercase tracking-[0.08em] text-gray-400">
@@ -134,6 +136,7 @@ export function Sidebar({ role }: SidebarProps) {
               <Link
                 key={item.id}
                 href={item.href}
+                onClick={onNavigate}
                 className={`
                   flex justify-between items-center w-full px-4 py-[7px] text-[13px] no-underline
                   border-l-2 transition-colors
@@ -154,6 +157,54 @@ export function Sidebar({ role }: SidebarProps) {
           })}
         </div>
       ))}
-    </aside>
+    </>
+  );
+}
+
+export function Sidebar({ role }: SidebarProps) {
+  const [mobileOpen, setMobileOpen] = useState(false);
+
+  return (
+    <>
+      {/* Mobile toggle button */}
+      <button
+        onClick={() => setMobileOpen(true)}
+        className="lg:hidden fixed bottom-4 left-4 z-40 bg-samsung-primary text-white w-12 h-12 rounded-full shadow-lg flex items-center justify-center"
+      >
+        <Menu className="w-5 h-5" />
+      </button>
+
+      {/* Mobile overlay */}
+      {mobileOpen && (
+        <div
+          className="lg:hidden fixed inset-0 bg-black/40 z-40"
+          onClick={() => setMobileOpen(false)}
+        />
+      )}
+
+      {/* Mobile drawer */}
+      <aside
+        className={`
+          lg:hidden fixed top-0 left-0 h-full w-[260px] bg-white z-50 shadow-xl
+          transform transition-transform duration-200 ease-in-out overflow-y-auto
+          ${mobileOpen ? "translate-x-0" : "-translate-x-full"}
+        `}
+      >
+        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200">
+          <span className="text-sm font-semibold text-gray-700">Navigation</span>
+          <button onClick={() => setMobileOpen(false)} className="text-gray-400 hover:text-gray-600">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+        <div className="py-4">
+          <SidebarContent role={role} onNavigate={() => setMobileOpen(false)} />
+        </div>
+      </aside>
+
+      {/* Desktop sidebar */}
+      <aside className="hidden lg:block w-[200px] min-h-[calc(100vh-84px)] bg-white border-r border-thin border-gray-200 py-4 sticky top-[84px] self-start shrink-0">
+        <SidebarContent role={role} />
+      </aside>
+    </>
   );
 }
