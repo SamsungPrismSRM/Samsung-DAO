@@ -27,8 +27,8 @@ export default function HistoryPage() {
   }, [loading, user, router]);
 
   useEffect(() => {
-    fetch("/api/proposals").then(r => r.json()).then(setProposals).catch(() => {});
-    fetch("/api/events").then(r => r.json()).then(setEvents).catch(() => {});
+    fetch("/api/proposals").then(r => r.json()).then(setProposals).catch(() => { });
+    fetch("/api/events").then(r => r.json()).then(setEvents).catch(() => { });
   }, []);
 
   if (loading || !user) return null;
@@ -50,9 +50,9 @@ export default function HistoryPage() {
       timestamp: e.createdAt,
     })),
     // Static entries for demo
-    { id: "h-vote-1", type: "vote", title: "Voted in Council Election — Q1 2025", detail: "Candidate: Park Soo-yeon", timestamp: "2025-01-15T10:30:00" },
-    { id: "h-vote-2", type: "vote", title: "Voted on Proposal P-8", detail: "Vote: Approve", timestamp: "2025-03-20T14:00:00" },
-    { id: "h-del-1", type: "delegation", title: "Received delegation from Han Ji-min", detail: "Active delegation", timestamp: "2025-03-10T09:00:00" },
+    { id: "h-vote-1", type: "vote" as const, title: "Voted in Council Election — Q1 2025", detail: "Candidate: Park Soo-yeon", timestamp: "2025-01-15T10:30:00" },
+    { id: "h-vote-2", type: "vote" as const, title: "Voted on Proposal P-8", detail: "Vote: Approve", timestamp: "2025-03-20T14:00:00" },
+    { id: "h-del-1", type: "delegation" as const, title: "Received delegation from Han Ji-min", detail: "Active delegation", timestamp: "2025-03-10T09:00:00" },
   ].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
 
   const iconMap = {
