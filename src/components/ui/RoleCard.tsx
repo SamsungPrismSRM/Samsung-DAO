@@ -17,9 +17,8 @@ interface RoleCardProps {
 
 export function RoleCard({ icon, title, description, features, buttonLabel, href, accent, primary = false, badge }: RoleCardProps) {
   return (
-    <div className={`flex-1 bg-white rounded-xl p-6 flex flex-col gap-4 relative transition-all hover:-translate-y-0.5 ${
-      primary ? "border-[1.5px] border-samsung-primary" : "border border-gray-200 hover:border-gray-300"
-    }`}>
+    <div className={`flex-1 min-w-[260px] bg-white rounded-xl p-5 sm:p-6 flex flex-col gap-4 relative transition-all hover:-translate-y-0.5 ${primary ? "border-[1.5px] border-samsung-primary" : "border border-gray-200 hover:border-gray-300"
+      }`}>
       {badge && (
         <span className="absolute -top-2.5 right-4 bg-samsung-primary text-white text-[10px] font-semibold px-2.5 py-0.5 rounded-full font-mono uppercase tracking-wide">{badge}</span>
       )}
@@ -36,9 +35,8 @@ export function RoleCard({ icon, title, description, features, buttonLabel, href
           </div>
         ))}
       </div>
-      <Link href={href} className={`w-full text-center py-2.5 rounded-lg text-[13px] font-semibold transition-colors no-underline ${
-        primary ? "bg-samsung-primary text-white hover:bg-samsung-dark" : "bg-transparent border border-gray-200 text-gray-700 hover:border-gray-300"
-      }`} style={!primary ? { borderColor: `${accent}40`, color: accent } : {}}>{buttonLabel}</Link>
+      <Link href={href} className={`w-full text-center py-2.5 rounded-lg text-[13px] font-semibold transition-colors no-underline ${primary ? "bg-samsung-primary text-white hover:bg-samsung-dark" : "bg-transparent border border-gray-200 text-gray-700 hover:border-gray-300"
+        }`} style={!primary ? { borderColor: `${accent}40`, color: accent } : {}}>{buttonLabel}</Link>
     </div>
   );
 }

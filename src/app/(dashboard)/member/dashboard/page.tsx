@@ -1,9 +1,7 @@
 "use client";
 
 import { useAuth } from "@/hooks/useAuth";
-
 import { useEffect, useState } from "react";
-
 import { useRouter } from "next/navigation";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { StatCard } from "@/components/ui/StatCard";
@@ -41,8 +39,8 @@ export default function MemberDashboard() {
   }, [loading, user, router]);
 
   useEffect(() => {
-    fetch("/api/elections").then((r) => r.json()).then(setElections).catch(() => {});
-    fetch("/api/proposals").then((r) => r.json()).then(setProposals).catch(() => {});
+    fetch("/api/elections").then((r) => r.json()).then(setElections).catch(() => { });
+    fetch("/api/proposals").then((r) => r.json()).then(setProposals).catch(() => { });
   }, []);
 
   if (loading || !user) return null;
@@ -60,7 +58,6 @@ export default function MemberDashboard() {
     });
 
     if (res.ok) {
-      // Refresh elections
       const updated = await fetch("/api/elections").then((r) => r.json());
       setElections(updated);
       setSelectedCandidate(null);
@@ -76,7 +73,6 @@ export default function MemberDashboard() {
     ? ((totalVotes / liveElection.eligibleMemberCount) * 100).toFixed(1)
     : "0";
 
-  // Reputation breakdown (computed from score)
   const rep = user.reputationScore;
   const repBreakdown = [
     { label: "Participation", pts: Math.round(rep * 0.378) },
@@ -88,7 +84,7 @@ export default function MemberDashboard() {
   return (
     <DashboardLayout role="MEMBER">
       {/* Stats */}
-      <div className="grid grid-cols-4 gap-3 mb-5">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
         <StatCard label="Reputation score" value={`${user.reputationScore} pts`} delta="+12 this month" />
         <StatCard label="Active votes" value={liveElection ? "1" : "0"} delta={liveElection ? "Ends soon" : "None"} />
         <StatCard label="Proposals created" value={proposals.filter((p) => p.status !== "REJECTED").length} delta={`${proposals.filter((p) => p.status === "APPROVED").length} approved`} />
@@ -97,11 +93,11 @@ export default function MemberDashboard() {
 
       {/* Live Election */}
       {liveElection && (
-        <div className="bg-white rounded-xl border-[1.5px] border-samsung-primary p-5 mb-5">
-          <div className="flex justify-between items-start mb-4">
+        <div className="bg-white rounded-xl border-[1.5px] border-samsung-primary p-4 sm:p-5 mb-5">
+          <div className="flex flex-col sm:flex-row justify-between items-start mb-4 gap-2">
             <div>
               <StatusBadge status="live" label="LIVE NOW" />
-              <h3 className="text-[17px] heading mt-2 mb-1">{liveElection.title}</h3>
+              <h3 className="text-[16px] sm:text-[17px] heading mt-2 mb-1">{liveElection.title}</h3>
               <p className="text-xs text-gray-500">
                 Voting closes: {new Date(liveElection.endDate).toLocaleString("en-KR")} ·{" "}
                 {liveElection.eligibleMemberCount} eligible · {totalVotes} votes cast ({votePercentage}%)
@@ -114,29 +110,27 @@ export default function MemberDashboard() {
               <div
                 key={c.id}
                 onClick={() => setSelectedCandidate(c.id)}
-                className={`flex items-center justify-between px-3.5 py-2.5 rounded-lg border-thin cursor-pointer transition-colors ${
-                  selectedCandidate === c.id
+                className={`flex items-center justify-between px-3 sm:px-3.5 py-2.5 rounded-lg border-thin cursor-pointer transition-colors ${selectedCandidate === c.id
                     ? "bg-samsung-light border-samsung-primary"
                     : "bg-gray-50 border-gray-200 hover:border-gray-300"
-                }`}
+                  }`}
               >
                 <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-full bg-samsung-light flex items-center justify-center text-xs font-semibold text-samsung-primary">
+                  <div className="w-8 h-8 rounded-full bg-samsung-light flex items-center justify-center text-xs font-semibold text-samsung-primary shrink-0">
                     {c.name.split(" ").map((n) => n[0]).join("")}
                   </div>
-                  <div>
-                    <div className="text-[13px] font-medium text-gray-700">{c.name}</div>
+                  <div className="min-w-0">
+                    <div className="text-[13px] font-medium text-gray-700 truncate">{c.name}</div>
                     <div className="text-[11px] text-gray-400">{c.department}</div>
                   </div>
                 </div>
-                <div className="flex items-center gap-3">
-                  <span className="font-mono text-xs text-gray-500">{c.voteCount} votes</span>
+                <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+                  <span className="font-mono text-[11px] sm:text-xs text-gray-500">{c.voteCount}</span>
                   <div
-                    className={`w-[18px] h-[18px] rounded-full border-[1.5px] transition-colors ${
-                      selectedCandidate === c.id
+                    className={`w-[18px] h-[18px] rounded-full border-[1.5px] transition-colors ${selectedCandidate === c.id
                         ? "border-samsung-primary bg-samsung-primary"
                         : "border-samsung-primary"
-                    }`}
+                      }`}
                   >
                     {selectedCandidate === c.id && (
                       <div className="w-full h-full flex items-center justify-center">
@@ -160,14 +154,14 @@ export default function MemberDashboard() {
       )}
 
       {/* Proposals + Reputation */}
-      <div className="grid grid-cols-2 gap-4 mb-5">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
         <div className="card">
           <h4 className="text-sm heading mb-3">Recent Proposals</h4>
           {proposals.slice(0, 5).map((p) => (
-            <div key={p.id} className="flex justify-between items-center py-2 border-b border-thin border-gray-200 last:border-b-0">
-              <div className="flex items-center gap-2">
-                <span className="font-mono text-[11px] text-gray-400 font-medium">P-{p.number}</span>
-                <span className="text-[13px] text-gray-700">{p.title}</span>
+            <div key={p.id} className="flex justify-between items-center gap-2 py-2 border-b border-thin border-gray-200 last:border-b-0">
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="font-mono text-[11px] text-gray-400 font-medium shrink-0">P-{p.number}</span>
+                <span className="text-[13px] text-gray-700 truncate">{p.title}</span>
               </div>
               <StatusBadge status={p.status.toLowerCase()} />
             </div>
@@ -197,7 +191,7 @@ export default function MemberDashboard() {
       </div>
 
       {/* Events */}
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <EventCard type="Lottery" title="Q2 Samsung SPU Lottery" detail="Draws: 15 Apr · 500 SPU prize" actionLabel="Enter now" />
         <EventCard type="Giveaway" title="PRISM Research Giveaway" detail="Closes: 20 Apr" actionLabel="Registered" registered />
       </div>
