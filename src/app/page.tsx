@@ -136,67 +136,6 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Bottom Info Strip */}
-      <section className="px-4 sm:px-6 pb-12 max-w-[960px] mx-auto flex flex-col md:flex-row gap-4">
-        {/* Login Flow */}
-        <div className="card flex-1">
-          <span className="eyebrow">MEMBER LOGIN FLOW</span>
-          <h4 className="text-[15px] heading mt-2 mb-3">2-step authentication</h4>
-          <div className="flex flex-col gap-3">
-            <div className="flex gap-2.5 items-start">
-              <div className="w-6 h-6 rounded-full bg-samsung-primary text-white text-[11px] font-semibold flex items-center justify-center shrink-0">
-                1
-              </div>
-              <div>
-                <div className="text-[13px] font-semibold text-gray-700">Samsung SSO</div>
-                <div className="text-xs text-gray-500">Employee credentials + KYC verification</div>
-              </div>
-            </div>
-            <div className="w-px h-3 bg-gray-200 ml-3" />
-            <div className="flex gap-2.5 items-start">
-              <div className="w-6 h-6 rounded-full bg-samsung-light text-samsung-primary text-[11px] font-semibold flex items-center justify-center shrink-0">
-                2
-              </div>
-              <div>
-                <div className="text-[13px] font-semibold text-gray-700">Hedera wallet binding</div>
-                <div className="text-xs text-gray-500">One-time setup · HashPack / WalletConnect</div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Architecture */}
-        <div className="card flex-1">
-          <span className="eyebrow">PLATFORM ARCHITECTURE</span>
-          <h4 className="text-[15px] heading mt-2 mb-3">6-layer stack</h4>
-          {[
-            { n: 1, label: "Samsung Member Web Portal", yours: true },
-            { n: 2, label: "Identity & Access", yours: true },
-            { n: 3, label: "API Gateway & Analytics", yours: false },
-            { n: 4, label: "Smart Contracts (Hedera)", yours: false },
-            { n: 5, label: "Security & Governance", yours: false },
-            { n: 6, label: "Hedera Native Services", yours: false },
-          ].map((l) => (
-            <div key={l.n} className="flex items-center gap-2 sm:gap-2.5 py-1 flex-wrap">
-              <span
-                className={`font-mono text-[11px] font-semibold px-2 py-0.5 rounded text-center min-w-[28px] shrink-0 ${l.yours ? "text-samsung-primary bg-samsung-light" : "text-gray-400 bg-gray-100"
-                  }`}
-              >
-                L{l.n}
-              </span>
-              <span className={`text-[12px] sm:text-[13px] ${l.yours ? "text-gray-700 font-medium" : "text-gray-400"}`}>
-                {l.label}
-              </span>
-              {l.yours && (
-                <span className="font-mono text-[9px] sm:text-[10px] font-medium text-samsung-primary bg-samsung-light px-1.5 rounded">
-                  YOUR TEAM
-                </span>
-              )}
-            </div>
-          ))}
-        </div>
-      </section>
-
       {/* Footer */}
       <footer className="bg-gray-900 py-5 px-4 sm:px-6 flex flex-col sm:flex-row justify-between items-center gap-2">
         <span className="text-xs text-white/50">Samsung DAO · PRISM Research · Hedera Testnet</span>
