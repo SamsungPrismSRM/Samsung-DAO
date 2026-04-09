@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 260 80" width="100%" height="100%">
+  <circle cx="40" cy="40" r="36" fill="#222"/>
+  <path d="M26 24h4.5v32H26zM49.5 24H54v32h-4.5zM30.5 35h19v3.5h-19zM30.5 43h19v3.5h-19z" fill="white" />
+  <text x="86" y="55" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="46" font-weight="500" fill="#222" letter-spacing="-1px">Hedera</text>
+  <text x="238" y="28" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="10" fill="#222">TM</text>
+</svg>
