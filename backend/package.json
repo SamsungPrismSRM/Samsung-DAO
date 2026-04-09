@@ -1,0 +1,39 @@
+{
+  "name": "samsung-dao-backend",
+  "version": "1.0.0",
+  "description": "Backend API for scmn",
+  "main": "dist/app.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/app.js",
+    "dev": "nodemon src/app.ts"
+  },
+  "dependencies": {
+    "@dfns/sdk": "^0.8.13",
+    "@dfns/sdk-keysigner": "^0.8.13",
+    "@hashgraph/sdk": "^2.50.0",
+    "@prisma/client": "^5.12.0",
+    "axios": "^1.6.8",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "ethers": "^6.11.1",
+    "express": "^4.19.2",
+    "firebase-admin": "^12.1.0",
+    "jsonwebtoken": "^9.0.3",
+    "socket.io": "^4.8.3"
+  },
+  "prisma": {
+    "seed": "ts-node prisma/seed.ts"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/node": "^20.12.7",
+    "@types/socket.io": "^3.0.1",
+    "nodemon": "^3.1.0",
+    "prisma": "^5.12.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.4.5"
+  }
+}
