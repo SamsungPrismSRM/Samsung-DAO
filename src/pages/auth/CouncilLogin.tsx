@@ -203,7 +203,16 @@ export default function CouncilLogin() {
   };
 
   const proceedToProvisioning = async (token: string | null) => {
-    if (!token) token = useAuthStore.getState().token;
+    // Always get a fresh token to avoid expiration during multi-step flow
+    const freshToken = auth.currentUser ? await auth.currentUser.getIdToken(true) : token;
+    if (!freshToken) {
+      toast.error('Session expired. Please log in again.');
+      navigate('/auth');
+      return;
+    }
+    // Update the stored token with the fresh one
+    login(freshToken, useAuthStore.getState().user!);
+
     setStep('council-provisioning');
     setShardProgress(0);
 
@@ -217,7 +226,7 @@ export default function CouncilLogin() {
     try {
       const walletRes = await fetch(`${API_BASE}/dfns/create-wallet`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${freshToken}` }
       });
 
       clearInterval(progressInterval);

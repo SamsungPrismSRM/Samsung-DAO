@@ -1,4 +1,7 @@
 import { create } from 'zustand';
+import { onAuthStateChanged } from 'firebase/auth';
+import { auth } from '@/lib/firebase';
+import { getFirebaseToken } from '@/lib/getFirebaseToken';
 
 export interface UserProfile {
   id: string;
@@ -35,6 +38,8 @@ interface AuthState {
   logout: () => void;
   updateUser: (user: Partial<UserProfile>) => void;
   setWallets: (wallets: WalletRecord[]) => void;
+  /** Get a fresh token – always use this instead of reading `token` directly */
+  freshToken: () => Promise<string | null>;
   hydrate: () => Promise<void>;
 }
 
@@ -64,18 +69,39 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   setWallets: (wallets) => set({ wallets }),
 
   /**
+   * Always returns a fresh Firebase token (auto-refreshed if expired).
+   * Falls back to the cached localStorage token if Firebase has no user.
+   */
+  freshToken: async () => {
+    const fresh = await getFirebaseToken();
+    if (fresh) {
+      // Persist the refreshed token so other parts of the app stay in sync
+      localStorage.setItem('auth_token', fresh);
+      set({ token: fresh });
+      return fresh;
+    }
+    return get().token;
+  },
+
+  /**
    * Hydrate user + wallets from backend on app load if token exists.
-   * This ensures identity + wallet persist across sessions.
+   * Uses a FRESH token to avoid expired-token errors.
    */
   hydrate: async () => {
-    const token = get().token;
+    // First try getting a fresh token from Firebase
+    let token = await getFirebaseToken();
+
+    // Fallback to localStorage if Firebase user isn't ready yet
+    if (!token) {
+      token = localStorage.getItem('auth_token');
+    }
+
     if (!token) {
       set({ isHydrated: true });
       return;
     }
 
     try {
-      // Parallel fetch user + wallets
       const [userRes, walletRes] = await Promise.all([
         fetch(`${API_BASE}/user/me`, {
           headers: { Authorization: `Bearer ${token}` }
@@ -86,16 +112,20 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       ]);
 
       if (!userRes.ok) {
-        // Token expired or invalid
+        // Token invalid — clear everything
         localStorage.removeItem('auth_token');
         set({ token: null, user: null, wallets: [], isAuthenticated: false, isHydrated: true });
         return;
       }
 
+      // Persist the fresh token
+      localStorage.setItem('auth_token', token);
+
       const userData = await userRes.json();
       const walletData = walletRes.ok ? await walletRes.json() : { wallets: [] };
 
       set({
+        token,
         user: userData.user,
         wallets: walletData.wallets || [],
         isAuthenticated: true,
@@ -106,3 +136,17 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
   }
 }));
+
+/* ── Firebase Auth State Listener ──────────────────────────────────
+ * Automatically refreshes the token in the store whenever Firebase
+ * detects a sign-in / token-refresh, and clears state on sign-out.
+ */
+onAuthStateChanged(auth, async (user) => {
+  if (user) {
+    const freshToken = await user.getIdToken();
+    localStorage.setItem('auth_token', freshToken);
+    useAuthStore.setState({ token: freshToken });
+  }
+  // Don't auto-clear on sign-out: let the store's logout() handle that
+  // to avoid interfering with the member login flow.
+});

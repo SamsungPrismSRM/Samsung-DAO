@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import type { MemberDto } from '@/services/memberService';
 import { memberMe } from '@/services/memberService';
+import { getFirebaseToken } from '@/lib/getFirebaseToken';
 
 const STORAGE_KEY = 'member_token';
 
@@ -37,13 +38,18 @@ export const useMemberStore = create<MemberState>((set, get) => ({
   },
 
   hydrate: async () => {
-    const token = localStorage.getItem(STORAGE_KEY);
+    // Try getting a fresh Firebase token first
+    let token = await getFirebaseToken();
+    if (!token) {
+      token = localStorage.getItem(STORAGE_KEY);
+    }
     if (!token) {
       set({ token: null, member: null, isHydrated: true });
       return;
     }
     try {
       const { member } = await memberMe(token);
+      localStorage.setItem(STORAGE_KEY, token);
       set({ token, member, isHydrated: true });
     } catch {
       localStorage.removeItem(STORAGE_KEY);
