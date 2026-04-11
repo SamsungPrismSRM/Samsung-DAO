@@ -49,11 +49,13 @@ export function WalletButton() {
       >
         {walletType === 'DFNS' ? (
           <Shield className="h-3.5 w-3.5 text-blue-500" />
+        ) : walletType === 'HASHPACK' ? (
+          <Wallet className="h-3.5 w-3.5 text-violet-500" />
         ) : (
           <Wallet className="h-3.5 w-3.5 text-orange-500" />
         )}
         <span className="hidden sm:inline">
-          {walletType === 'DFNS' ? 'DFNS' : 'MM'}
+          {walletType === 'DFNS' ? 'DFNS' : walletType === 'HASHPACK' ? 'HP' : 'MM'}
         </span>
         {`${address.slice(0, 6)}...${address.slice(-4)}`}
         {isCustodial && (
