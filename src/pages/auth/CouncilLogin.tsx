@@ -1,8 +1,13 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { signInWithPopup, signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
+import { signInWithPopup, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from 'firebase/auth';
 import { auth, googleProvider } from '@/lib/firebase';
+import {
+  getSamsungSsoEmailSuffixes,
+  isSamsungCorporateGoogleEmail,
+  SAMSUNG_GOOGLE_SSO_MESSAGE,
+} from '@/lib/samsung-sso';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAuthStore } from '@/stores/useAuthStore';
@@ -113,6 +118,10 @@ export default function CouncilLogin() {
   const firebaseAuth = async () => {
     if (authMethod === 'google') {
       const result = await signInWithPopup(auth, googleProvider);
+      if (!isSamsungCorporateGoogleEmail(result.user.email)) {
+        await signOut(auth);
+        throw new Error(SAMSUNG_GOOGLE_SSO_MESSAGE);
+      }
       return await result.user.getIdToken();
     } else {
       if (!email || !password) throw new Error('Email and password required');
@@ -174,7 +183,8 @@ export default function CouncilLogin() {
           }
         }
         toast.info('Existing council identity restored');
-        setTimeout(() => setStep('council-complete'), 800);
+        navigate('/council', { replace: true });
+        return;
       } else {
         setStep('council-hq-select'); 
       }
@@ -299,6 +309,12 @@ export default function CouncilLogin() {
                     </button>
                   </div>
                 </div>
+                {authMethod === 'google' && (
+                  <p className="text-[10px] text-muted-foreground px-1 pt-1 leading-relaxed">
+                    Google: Samsung Workspace SSO only (
+                    {getSamsungSsoEmailSuffixes().map((s) => `@${s}`).join(', ')}). Use Email for dev / test accounts.
+                  </p>
+                )}
 
                 <AnimatePresence mode="wait">
                   {authMethod === 'email' && (
@@ -551,10 +567,10 @@ export default function CouncilLogin() {
               </div>
 
               <Button
-                onClick={() => navigate('/dashboard')}
+                onClick={() => navigate('/council', { replace: true })}
                 className="w-full bg-blue-600 hover:bg-blue-700 text-white h-11"
               >
-                Enter Dashboard
+                Open council HQ
               </Button>
             </div>
           </motion.div>
