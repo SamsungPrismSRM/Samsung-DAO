@@ -18,7 +18,7 @@ interface WalletState {
   hqAssignment: string | null;
   keyShards: KeyShard[];
 
-  connect: (address: string, walletType?: 'METAMASK' | 'DFNS') => void;
+  connect: (address: string, walletType?: 'METAMASK' | 'DFNS' | 'HASHPACK', balance?: string) => void;
   disconnect: () => void;
   setKeyShards: (shards: KeyShard[]) => void;
   setHqAssignment: (hq: string) => void;
@@ -34,13 +34,14 @@ export const useWalletStore = create<WalletState>((set) => ({
   hqAssignment: null,
   keyShards: [],
 
-  connect: (address, walletType = 'METAMASK') => set({
-    address,
-    isConnected: true,
-    balance: '1,250.00',
-    walletType,
-    isCustodial: walletType === 'DFNS',
-  }),
+  connect: (address, walletType = 'METAMASK', balance) =>
+    set({
+      address,
+      isConnected: true,
+      balance: balance ?? (walletType === 'HASHPACK' ? '0' : '0'),
+      walletType,
+      isCustodial: walletType === 'DFNS',
+    }),
 
   disconnect: () => set({
     address: null,
