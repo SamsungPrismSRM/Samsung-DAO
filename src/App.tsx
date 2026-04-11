@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -28,6 +28,9 @@ import MemberVote from "./pages/member/Vote";
 import MemberProposals from "./pages/member/Proposals";
 import MemberHistory from "./pages/member/History";
 import MemberDelegations from "./pages/member/Delegations";
+import MemberLottery from "./pages/member/Lottery";
+import MemberGiveaway from "./pages/member/Giveaway";
+import MemberMyProposals from "@/pages/member/MyProposals";
 
 // Council pages
 import { CouncilLayout } from "./components/council/CouncilLayout";
@@ -76,6 +79,19 @@ const App = () => (
               <Route path="voting" element={<VotingConfigPage />} />
               <Route path="giveaways" element={<GiveawaySetup />} />
               <Route path="lotteries" element={<LotteryConfig />} />
+            </Route>
+
+            <Route path="/member" element={<MemberLayout />}>
+              <Route index element={<Navigate to="dashboard" replace />} />
+              <Route path="dashboard" element={<MemberDashboard />} />
+              <Route path="profile" element={<MemberProfile />} />
+              <Route path="vote" element={<MemberVote />} />
+              <Route path="proposals" element={<MemberProposals />} />
+              <Route path="my-proposals" element={<MemberMyProposals />} />
+              <Route path="history" element={<MemberHistory />} />
+              <Route path="delegations" element={<MemberDelegations />} />
+              <Route path="lottery" element={<MemberLottery />} />
+              <Route path="giveaway" element={<MemberGiveaway />} />
             </Route>
 
             <Route path="*" element={<NotFound />} />
