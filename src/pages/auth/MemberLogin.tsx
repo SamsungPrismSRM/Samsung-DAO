@@ -19,12 +19,11 @@ import { Input } from '@/components/ui/input';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useWalletStore } from '@/stores/useWalletStore';
 import { toast } from 'sonner';
-import { Users, ArrowLeft, Loader2, Wallet, AlertTriangle, Mail } from 'lucide-react';
-import { authenticateWithMetaMask, isMetaMaskInstalled, addHederaTestnet } from '@/lib/metamask';
+import { Users, ArrowLeft, Loader2, Wallet, Mail } from 'lucide-react';
 
 type MemberStep = 'member-auth' | 'member-wallet';
 
-const API_BASE = 'http://localhost:3001/api/v1';
+const API_BASE = import.meta.env.VITE_API_BASE ?? 'http://localhost:3001/api/v1';
 
 export default function MemberLogin() {
   const [step, setStep] = useState<MemberStep>('member-auth');
@@ -91,7 +90,7 @@ export default function MemberLogin() {
       updateUser(d.user);
     }
 
-    toast.success('Signed in', { description: 'Connect MetaMask to continue.' });
+    toast.success('Signed in', { description: 'Link HashPack to finish setup, or skip for now.' });
     setStep('member-wallet');
   };
 
@@ -144,50 +143,44 @@ export default function MemberLogin() {
     }
   };
 
-  const handleMetaMaskConnect = async () => {
+  const handleHashPackConnect = async () => {
     setIsLoading(true);
     try {
-      if (!isMetaMaskInstalled()) {
-        toast.error('MetaMask not detected', {
-          description: 'Please install MetaMask browser extension to continue.',
-          action: {
-            label: 'Install',
-            onClick: () => window.open('https://metamask.io/download/', '_blank')
-          }
-        });
-        setIsLoading(false);
-        return;
-      }
+      const { pairHashPackAndSignBindingMessage } = await import('@/lib/hashpackConnect');
+      const { accountId, message, signatureHex } = await pairHashPackAndSignBindingMessage();
+      const token = await useAuthStore.getState().freshToken();
+      if (!token) throw new Error('Not authenticated');
 
-      await addHederaTestnet();
-      const { address, signature, message } = await authenticateWithMetaMask();
-      const token = useAuthStore.getState().token;
-      
-      const res = await fetch(`${API_BASE}/wallet/metamask/connect`, {
+      const res = await fetch(`${API_BASE}/wallet/connect`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ wallet_address: address, signature, message })
+        body: JSON.stringify({ accountId, message, signatureHex }),
       });
 
+      const raw = await res.text();
+      let body: { error?: string } = {};
+      try {
+        body = JSON.parse(raw) as { error?: string };
+      } catch {
+        /* plain text */
+      }
       if (!res.ok) {
-        const errorText = await res.text();
-        console.error("BACKEND ERROR:", errorText);
-        throw new Error(errorText);
+        throw new Error(body.error || raw.slice(0, 200) || 'Wallet connect failed');
       }
 
-      const data = await res.json();
-      connect(address, 'METAMASK');
-      setWallets([data.wallet]);
+      connect(accountId, 'HASHPACK');
+      const wRes = await fetch(`${API_BASE}/wallet/me`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const wJson = await wRes.json();
+      setWallets(wJson.wallets || []);
       updateUser({ is_wallet_created: true });
-      toast.success('MetaMask wallet connected!');
-      navigate('/dashboard');
-    } catch (error: any) {
+      toast.success('HashPack connected');
+      navigate('/member/dashboard');
+    } catch (error: unknown) {
       console.error(error);
-      if (error.code === 4001) {
-        toast.error('Connection rejected', { description: 'You declined the MetaMask request.' });
-      } else {
-        toast.error('MetaMask connection failed', { description: error.message });
-      }
+      const message = error instanceof Error ? error.message : 'Connection failed';
+      toast.error('HashPack', { description: message });
     } finally {
       setIsLoading(false);
     }
@@ -215,7 +208,7 @@ export default function MemberLogin() {
                 </div>
                 <div>
                   <h2 className="font-display text-xl font-bold">Samsung Member</h2>
-                  <p className="text-xs text-muted-foreground">Non-custodial · MetaMask</p>
+                  <p className="text-xs text-muted-foreground">Non-custodial · HashPack</p>
                 </div>
               </div>
 
@@ -342,51 +335,47 @@ export default function MemberLogin() {
           >
             <div className="glass-card rounded-2xl p-8">
               <div className="text-center mb-6">
-                <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-orange-500/10">
-                  <svg className="h-7 w-7" viewBox="0 0 40 40" fill="none">
-                    <path d="M37.5 2.5L22.08 14.17l2.85-6.73L37.5 2.5z" fill="#E2761B" stroke="#E2761B" strokeLinecap="round" strokeLinejoin="round"/>
-                    <path d="M2.5 2.5l15.27 11.8-2.7-6.86L2.5 2.5zm29.92 24.5L28 33.5l9.5 2.62 2.73-9.25-7.81.13zm-30.15.13L5 36.12l9.5-2.62-4.42-6.5-7.81-.13z" fill="#E4761B" stroke="#E4761B" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
+                <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-violet-500/10">
+                  <Wallet className="h-7 w-7 text-violet-600" />
                 </div>
-                <h2 className="font-display text-xl font-bold">Connect MetaMask</h2>
-                <p className="text-xs text-muted-foreground mt-1">Sign a message to verify wallet ownership</p>
+                <h2 className="font-display text-xl font-bold">Connect HashPack</h2>
+                <p className="text-xs text-muted-foreground mt-1">
+                  WalletConnect modal — choose HashPack and sign the binding message (Hedera testnet).
+                </p>
               </div>
-
-              {!isMetaMaskInstalled() && (
-               <div className="flex items-start gap-3 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 mb-4">
-                 <AlertTriangle className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
-                 <div>
-                   <p className="text-xs font-semibold text-amber-700">MetaMask not detected</p>
-                   <p className="text-[10px] text-amber-600 mt-0.5">
-                     Install the MetaMask browser extension to continue.
-                   </p>
-                 </div>
-               </div>
-              )}
 
               <div className="space-y-3">
                 <Button
-                  onClick={handleMetaMaskConnect}
+                  onClick={handleHashPackConnect}
                   disabled={isLoading}
-                  className="w-full h-12 gap-3 bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white"
+                  className="w-full h-12 gap-3 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white"
                 >
                   {isLoading ? (
-                    <><Loader2 className="h-4 w-4 animate-spin" /> Connecting...</>
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" /> Connecting...
+                    </>
                   ) : (
                     <>
                       <Wallet className="h-5 w-5" />
-                      Connect MetaMask
+                      Connect HashPack
                     </>
                   )}
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="w-full text-muted-foreground"
+                  disabled={isLoading}
+                  onClick={() => navigate('/member/dashboard')}
+                >
+                  Skip for now
                 </Button>
               </div>
 
               <div className="mt-4 p-3 rounded-xl bg-muted/50 border border-border/50">
                 <p className="text-[10px] text-muted-foreground text-center">
-                  You'll be asked to sign: <span className="font-mono font-semibold text-foreground">"Authenticate Samsung Members DAO"</span>
-                </p>
-                <p className="text-[10px] text-muted-foreground text-center mt-1">
-                  This proves wallet ownership — no gas fees, no transaction.
+                  Requires <span className="font-mono font-semibold text-foreground">VITE_WALLETCONNECT_PROJECT_ID</span>{' '}
+                  in your env. You can link your wallet later from Member profile.
                 </p>
               </div>
             </div>
