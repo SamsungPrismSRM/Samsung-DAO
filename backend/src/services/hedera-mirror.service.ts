@@ -94,3 +94,31 @@ export function hederaSignedMessageBytes(message: string): Uint8Array {
   const prefixed = '\x19Hedera Signed Message:\n' + String(message.length) + message;
   return new TextEncoder().encode(prefixed);
 }
+
+export async function fetchAccountData(accountId: string) {
+  const id = accountId.trim();
+  if (!id) return null;
+
+  try {
+    const accountUrl = `${TESTNET_MIRROR}/api/v1/accounts/${encodeURIComponent(id)}`;
+    const txUrl = `${TESTNET_MIRROR}/api/v1/transactions?account.id=${encodeURIComponent(id)}&limit=10`;
+    
+    const [accountRes, txRes] = await Promise.all([
+      fetch(accountUrl, { headers: { Accept: 'application/json' } }),
+      fetch(txUrl, { headers: { Accept: 'application/json' } })
+    ]);
+
+    if (!accountRes.ok) return null;
+
+    const accountData = await accountRes.json();
+    const txData = txRes.ok ? await txRes.json() : { transactions: [] };
+
+    return {
+      balance: accountData.balance?.balance || 0,
+      transactions: txData.transactions || []
+    };
+  } catch (error) {
+    console.error("Error fetching account data from mirror node:", error);
+    return null;
+  }
+}
