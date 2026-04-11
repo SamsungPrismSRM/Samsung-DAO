@@ -13,6 +13,7 @@ import { UserController } from './controllers/user.controller';
 import { ProfileController } from './controllers/profile.controller';
 import { DfnsController } from './controllers/dfns.controller';
 import { CouncilController } from './controllers/council.controller';
+import { MemberController } from './controllers/member.controller';
 import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
@@ -59,6 +60,15 @@ authRouter.post('/login', requireAuth, AuthController.memberLogin);
 authRouter.post('/onboard', requireAuth, AuthController.memberOnboard);
 authRouter.post('/council-login', requireAuth, AuthController.councilLogin);
 app.use('/api/v1/auth', authRouter);
+
+// Member Dashboard Routes
+const memberRouter = express.Router();
+memberRouter.get('/metrics', requireAuth, MemberController.getMetrics);
+memberRouter.get('/dashboard', requireAuth, MemberController.getDashboardData);
+memberRouter.get('/history', requireAuth, MemberController.getHistory);
+memberRouter.get('/delegations', requireAuth, MemberController.getDelegations);
+app.use('/api/v1/member-dashboard', memberRouter);
+
 
 // DFNS Routes
 const dfnsRouter = express.Router();

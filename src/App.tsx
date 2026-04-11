@@ -21,6 +21,13 @@ import NotFound from "./pages/NotFound";
 import Onboard from "./pages/Onboard";
 
 import { DataLoader } from "./components/DataLoader";
+import { MemberLayout } from "./components/member/MemberLayout";
+import MemberDashboard from "./pages/member/Dashboard";
+import MemberProfile from "./pages/member/Profile";
+import MemberVote from "./pages/member/Vote";
+import MemberProposals from "./pages/member/Proposals";
+import MemberHistory from "./pages/member/History";
+import MemberDelegations from "./pages/member/Delegations";
 
 // Council pages
 import { CouncilLayout } from "./components/council/CouncilLayout";

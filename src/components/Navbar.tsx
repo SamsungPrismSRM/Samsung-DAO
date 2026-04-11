@@ -20,6 +20,7 @@ const navItems = [
     ],
   },
   { label: 'Forum', path: '/forum' },
+  { label: 'Member', path: '/member/dashboard' },
 ];
 
 export function Navbar() {
