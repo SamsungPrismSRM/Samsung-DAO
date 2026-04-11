@@ -31,8 +31,13 @@ export function Navbar() {
   const { isAuthenticated, user, logout } = useAuthStore();
   const { disconnect } = useWalletStore();
 
+  const isCouncil = user?.role === 'COUNCIL';
+
   const navItems = baseNavItems.filter((item) => {
-    if ('path' in item && item.path === '/member/dashboard') return isAuthenticated;
+    if ('path' in item && item.path === '/member/dashboard') {
+      if (isCouncil) return false;
+      return isAuthenticated;
+    }
     return true;
   });
 
@@ -64,7 +69,7 @@ export function Navbar() {
       <div className="container mx-auto flex h-16 min-w-0 max-w-full items-center gap-2 px-2 sm:px-4">
         {/* Logo: shrink-0 mark + min-w-0 text so the bar never clips the brand on narrow viewports */}
         <Link
-          to="/"
+          to={isCouncil ? '/council' : '/'}
           className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden py-1 no-underline hover:opacity-90"
         >
           <img
@@ -77,7 +82,15 @@ export function Navbar() {
           />
           <span className="font-display min-w-0 truncate text-sm font-bold leading-tight text-foreground sm:text-base md:text-lg">
             <span className="whitespace-nowrap">
-              Samsung Members <span className="gradient-text">DAO</span>
+              {isCouncil ? (
+                <>
+                  Samsung <span className="gradient-text">DAO</span>
+                </>
+              ) : (
+                <>
+                  Samsung Members <span className="gradient-text">DAO</span>
+                </>
+              )}
             </span>
           </span>
         </Link>
