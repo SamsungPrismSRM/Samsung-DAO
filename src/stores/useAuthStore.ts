@@ -15,7 +15,7 @@ export interface UserProfile {
 export interface WalletRecord {
   id: string;
   wallet_address: string;
-  wallet_type: 'DFNS' | 'METAMASK';
+  wallet_type: 'DFNS' | 'METAMASK' | 'HASHPACK';
   dfns_wallet_id: string | null;
   network: string;
   is_custodial: boolean;
