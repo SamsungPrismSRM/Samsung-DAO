@@ -1,0 +1,117 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 220 20% 97%;
+    --foreground: 222 47% 11%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+
+    --primary: 217 91% 50%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 220 14% 96%;
+    --secondary-foreground: 222 47% 11%;
+
+    --muted: 220 14% 96%;
+    --muted-foreground: 220 9% 46%;
+
+    --accent: 262 60% 56%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 220 13% 91%;
+    --input: 220 13% 91%;
+    --ring: 217 91% 50%;
+
+    --radius: 0.75rem;
+
+    /* Samsung DAO custom tokens */
+    --samsung-blue: 217 91% 50%;
+    --samsung-blue-light: 217 91% 96%;
+    --samsung-blue-dark: 217 91% 40%;
+    --samsung-purple: 262 60% 56%;
+    --samsung-purple-light: 262 60% 96%;
+    --samsung-green: 152 69% 41%;
+    --samsung-orange: 25 95% 53%;
+    --samsung-surface: 220 20% 99%;
+    --samsung-surface-elevated: 0 0% 100%;
+    --samsung-gradient-start: 217 91% 50%;
+    --samsung-gradient-end: 262 60% 56%;
+
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 222 47% 11%;
+    --sidebar-primary: 217 91% 50%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 220 14% 96%;
+    --sidebar-accent-foreground: 222 47% 11%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 217 91% 50%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+  }
+}
+
+@layer utilities {
+  .gradient-primary {
+    background: linear-gradient(135deg, hsl(var(--samsung-blue)) 0%, hsl(var(--samsung-purple)) 100%);
+  }
+  .gradient-primary-subtle {
+    background: linear-gradient(135deg, hsl(var(--samsung-blue-light)) 0%, hsl(var(--samsung-purple-light)) 100%);
+  }
+  .gradient-text {
+    background: linear-gradient(135deg, hsl(var(--samsung-blue)) 0%, hsl(var(--samsung-purple)) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .glass-card {
+    @apply bg-card/80 backdrop-blur-xl border border-border/50 shadow-sm;
+  }
+  .glass-card-elevated {
+    @apply bg-card/90 backdrop-blur-xl border border-border/40 shadow-md;
+  }
+}
+
+/* Mobile-responsive toasts for any alignment */
+@media (max-width: 639px) {
+  [data-sonner-toaster] {
+    --offset: 16px !important;
+    left: var(--offset) !important;
+    right: var(--offset) !important;
+    width: auto !important;
+  }
+  [data-sonner-toaster][data-x-position='right'] {
+    right: var(--offset) !important;
+    left: var(--offset) !important;
+  }
+  [data-sonner-toaster][data-x-position='left'] {
+    left: var(--offset) !important;
+    right: var(--offset) !important;
+  }
+  [data-sonner-toaster][data-x-position='center'] {
+    left: var(--offset) !important;
+    right: var(--offset) !important;
+    transform: none !important;
+  }
+  [data-sonner-toast] {
+    width: 100% !important;
+  }
+}
