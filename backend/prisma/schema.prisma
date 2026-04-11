@@ -7,6 +7,301 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model HQ {
+  id           String  @id
+  name         String
+  region       String
+  dfns_user_id String? @unique
+  timezone     String?
+  users        User[]
+}
+
+model User {
+  id                     String               @id @default(uuid()) @db.Uuid
+  firebase_uid           String               @unique
+  name                   String
+  nickname               String?
+  email                  String               @unique
+  role                   Role                 @default(MEMBER)
+  is_wallet_created      Boolean              @default(false)
+  created_at             DateTime             @default(now())
+  alias                  String?
+  hq                     String?
+  is_onboarded           Boolean              @default(false)
+  hq_wallet_id           String?              @db.Uuid
+  reputation             Int                  @default(0)
+  last_seen_at           DateTime?
+  audit_logs             AuditLog[]
+  forum_comments         ForumComment[]
+  forum_posts            ForumPost[]
+  lottery_participations LotteryParticipant[]
+  proposals_created      Proposal[]
+  reward_transactions    RewardTransaction[]
+  signaling_votes        SignalingVote[]
+  hq_record              HQ?                  @relation(fields: [hq], references: [id], map: "User_hq_record_fkey")
+  hq_wallet              HQWallet?            @relation(fields: [hq_wallet_id], references: [id], map: "User_hq_wallet_fkey")
+  wallets                Wallet[]
+}
+
+model Wallet {
+  id                String     @id @default(uuid()) @db.Uuid
+  user_id           String     @db.Uuid
+  wallet_address    String     @unique
+  wallet_type       WalletType
+  network           String     @default("HEDERA_TESTNET")
+  is_custodial      Boolean    @default(false)
+  is_multisig       Boolean    @default(false)
+  is_council_wallet Boolean    @default(false)
+  created_at        DateTime   @default(now())
+  dfns_wallet_id    String?    @unique
+  is_primary        Boolean    @default(true)
+  user              User       @relation(fields: [user_id], references: [id])
+}
+
+model Proposal {
+  id                  String                @id @default(uuid()) @db.Uuid
+  title               String
+  description         String
+  type                ProposalType
+  status              ProposalStatus        @default(DRAFT)
+  ipfs_cid            String?
+  onchain_proposal_id String?               @unique
+  created_by          String                @db.Uuid
+  start_time          DateTime?
+  end_time            DateTime?
+  created_at          DateTime              @default(now())
+  lottery_events      LotteryEvent[]
+  onchain_votes       OnchainVote[]
+  creator             User                  @relation(fields: [created_by], references: [id])
+  result              ProposalResult?
+  versions            ProposalVersion[]
+  signaling_votes     SignalingVote[]
+  treasury_txs        TreasuryTransaction[]
+}
+
+model ProposalVersion {
+  id             String   @id @default(uuid()) @db.Uuid
+  proposal_id    String   @db.Uuid
+  version_number Int
+  title          String
+  description    String
+  created_at     DateTime @default(now())
+  proposal       Proposal @relation(fields: [proposal_id], references: [id])
+}
+
+model SignalingVote {
+  id           String   @id @default(uuid()) @db.Uuid
+  proposal_id  String   @db.Uuid
+  user_id      String   @db.Uuid
+  vote_type    VoteType
+  voting_power Decimal  @db.Decimal(20, 4)
+  created_at   DateTime @default(now())
+  proposal     Proposal @relation(fields: [proposal_id], references: [id])
+  user         User     @relation(fields: [user_id], references: [id])
+
+  @@unique([proposal_id, user_id])
+}
+
+model OnchainVote {
+  id               String   @id @default(uuid()) @db.Uuid
+  proposal_id      String   @db.Uuid
+  wallet_address   String
+  vote_type        VoteType
+  voting_power     Decimal  @db.Decimal(20, 4)
+  transaction_hash String   @unique
+  block_timestamp  DateTime
+  proposal         Proposal @relation(fields: [proposal_id], references: [id])
+
+  @@unique([proposal_id, wallet_address])
+}
+
+model ProposalResult {
+  id            String     @id @default(uuid()) @db.Uuid
+  proposal_id   String     @unique @db.Uuid
+  yes_votes     Decimal    @default(0) @db.Decimal(20, 4)
+  no_votes      Decimal    @default(0) @db.Decimal(20, 4)
+  abstain_votes Decimal    @default(0) @db.Decimal(20, 4)
+  total_votes   Decimal    @default(0) @db.Decimal(20, 4)
+  source        VoteSource
+  finalized_at  DateTime?
+  proposal      Proposal   @relation(fields: [proposal_id], references: [id])
+}
+
+model TreasuryTransaction {
+  id               String   @id @default(uuid()) @db.Uuid
+  proposal_id      String   @db.Uuid
+  amount           Decimal  @db.Decimal(36, 18)
+  token_type       String
+  recipient_wallet String
+  transaction_hash String   @unique
+  executed_at      DateTime @default(now())
+  proposal         Proposal @relation(fields: [proposal_id], references: [id])
+}
+
+model ForumCategory {
+  id    String      @id @default(uuid()) @db.Uuid
+  name  String      @unique
+  posts ForumPost[]
+}
+
+model ForumPost {
+  id          String         @id @default(uuid()) @db.Uuid
+  category_id String         @db.Uuid
+  user_id     String         @db.Uuid
+  title       String
+  content     String
+  tags        String[]
+  created_at  DateTime       @default(now())
+  comments    ForumComment[]
+  category    ForumCategory  @relation(fields: [category_id], references: [id])
+  author      User           @relation(fields: [user_id], references: [id])
+}
+
+model ForumComment {
+  id         String    @id @default(uuid()) @db.Uuid
+  post_id    String    @db.Uuid
+  user_id    String    @db.Uuid
+  content    String
+  created_at DateTime  @default(now())
+  post       ForumPost @relation(fields: [post_id], references: [id])
+  author     User      @relation(fields: [user_id], references: [id])
+}
+
+model LotteryEvent {
+  id           String               @id @default(uuid()) @db.Uuid
+  proposal_id  String               @db.Uuid
+  reward_pool  Decimal              @db.Decimal(36, 18)
+  status       LotteryStatus        @default(PENDING)
+  created_at   DateTime             @default(now())
+  proposal     Proposal             @relation(fields: [proposal_id], references: [id])
+  participants LotteryParticipant[]
+}
+
+model LotteryParticipant {
+  id             String       @id @default(uuid()) @db.Uuid
+  event_id       String       @db.Uuid
+  user_id        String       @db.Uuid
+  wallet_address String
+  tickets        Int          @default(0)
+  event          LotteryEvent @relation(fields: [event_id], references: [id])
+  user           User         @relation(fields: [user_id], references: [id])
+
+  @@unique([event_id, user_id])
+}
+
+model RewardTransaction {
+  id               String     @id @default(uuid()) @db.Uuid
+  user_id          String     @db.Uuid
+  type             RewardType
+  amount           Decimal    @db.Decimal(36, 18)
+  reference_id     String?
+  transaction_hash String?
+  created_at       DateTime   @default(now())
+  user             User       @relation(fields: [user_id], references: [id])
+}
+
+model AuditLog {
+  id          String   @id @default(uuid()) @db.Uuid
+  user_id     String?  @db.Uuid
+  action      String
+  entity_type String
+  entity_id   String
+  metadata    Json?
+  ip_address  String?
+  created_at  DateTime @default(now())
+  user        User?    @relation(fields: [user_id], references: [id])
+}
+
+model HQWallet {
+  id                String   @id @default(uuid()) @db.Uuid
+  hq                String?  @unique
+  dfns_wallet_id    String
+  hedera_account_id String
+  created_at        DateTime @default(now())
+  name              String   @default("scmn Treasury")
+  threshold         Int      @default(8)
+  total_members     Int      @default(15)
+  users             User[]
+}
+
+model GovernanceRule {
+  id         String   @id @default(uuid()) @db.Uuid
+  key        String   @unique
+  label      String
+  value      String
+  unit       String?
+  min        Float?
+  max        Float?
+  updated_by String?  @db.Uuid
+  updated_at DateTime @default(now()) @updatedAt
+}
+
+model Election {
+  id                   String         @id @default(uuid()) @db.Uuid
+  title                String
+  type                 String         @default("single_choice")
+  status               ElectionStatus @default(DRAFT)
+  start_date           DateTime
+  end_date             DateTime
+  require_reputation   Boolean        @default(false)
+  allow_delegation     Boolean        @default(false)
+  snapshot_eligibility Boolean        @default(false)
+  eligible_count       Int            @default(0)
+  created_by           String?        @db.Uuid
+  created_at           DateTime       @default(now())
+  candidates           Candidate[]
+}
+
+model Candidate {
+  id          String   @id @default(uuid()) @db.Uuid
+  election_id String   @db.Uuid
+  name        String
+  department  String?
+  created_at  DateTime @default(now())
+  election    Election @relation(fields: [election_id], references: [id], onDelete: Cascade)
+}
+
+model Giveaway {
+  id             String   @id @default(uuid()) @db.Uuid
+  title          String
+  prize          String
+  description    String?
+  closes_at      DateTime
+  require_kyc    Boolean  @default(false)
+  allow_multiple Boolean  @default(false)
+  created_by     String?  @db.Uuid
+  created_at     DateTime @default(now())
+}
+
+model Lottery {
+  id                String   @id @default(uuid()) @db.Uuid
+  title             String
+  prize             String
+  draw_date         DateTime
+  min_reputation    Int      @default(0)
+  is_onchain_random Boolean  @default(false)
+  created_by        String?  @db.Uuid
+  created_at        DateTime @default(now())
+}
+
+model VotingConfig {
+  id          String   @id @default(uuid()) @db.Uuid
+  key         String   @unique
+  label       String
+  description String?
+  value       String
+  type        String   @default("number")
+  updated_at  DateTime @default(now()) @updatedAt
+}
+
+model VotingRule {
+  id          String   @id @default(uuid()) @db.Uuid
+  title       String
+  description String?
+  enforced    Boolean  @default(true)
+  created_at  DateTime @default(now())
+}
+
 enum Role {
   MEMBER
   COUNCIL
@@ -16,6 +311,7 @@ enum Role {
 enum WalletType {
   DFNS
   METAMASK
+  HASHPACK
 }
 
 enum ProposalType {
@@ -31,6 +327,9 @@ enum ProposalStatus {
   PASSED
   FAILED
   EXECUTED
+  APPROVED
+  REJECTED
+  REVIEW
 }
 
 enum VoteType {
@@ -57,231 +356,9 @@ enum RewardType {
   FIAT
 }
 
-model HQ {
-  id        String   @id
-  name      String
-  region    String
-  dfns_user_id String? @unique
-  users     User[]
-}
-
-model User {
-  id                  String                @id @default(uuid()) @db.Uuid
-  firebase_uid        String                @unique
-  name                String
-  nickname            String?
-  email               String                @unique
-  role                Role                  @default(MEMBER)
-  is_wallet_created   Boolean               @default(false)
-  is_onboarded        Boolean               @default(false)
-  hq                  String?
-  hq_wallet_id        String?               @db.Uuid
-  alias               String?
-  created_at          DateTime              @default(now())
-
-  wallets             Wallet[]
-  proposals_created   Proposal[]
-  signaling_votes     SignalingVote[]
-  forum_posts         ForumPost[]
-  forum_comments      ForumComment[]
-  lottery_participations LotteryParticipant[]
-  reward_transactions RewardTransaction[]
-  audit_logs          AuditLog[]
-  hq_record           HQ?                   @relation(fields: [hq], references: [id], map: "User_hq_record_fkey")
-  hq_wallet           HQWallet?             @relation(fields: [hq_wallet_id], references: [id], map: "User_hq_wallet_fkey")
-}
-
-model Wallet {
-  id                String      @id @default(uuid()) @db.Uuid
-  user_id           String      @db.Uuid
-  wallet_address    String      @unique
-  wallet_type       WalletType
-  dfns_wallet_id    String?     @unique
-  network           String      @default("HEDERA_TESTNET")
-  is_custodial      Boolean     @default(false)
-  is_multisig       Boolean     @default(false)
-  is_council_wallet Boolean     @default(false)
-  is_primary        Boolean     @default(true)
-  created_at        DateTime    @default(now())
-
-  user              User        @relation(fields: [user_id], references: [id])
-}
-
-model Proposal {
-  id                  String           @id @default(uuid()) @db.Uuid
-  title               String
-  description         String           @db.Text
-  type                ProposalType
-  status              ProposalStatus   @default(DRAFT)
-  ipfs_cid            String?
-  onchain_proposal_id String?          @unique
-  created_by          String           @db.Uuid
-  start_time          DateTime?
-  end_time            DateTime?
-  created_at          DateTime         @default(now())
-
-  creator             User             @relation(fields: [created_by], references: [id])
-  versions            ProposalVersion[]
-  signaling_votes     SignalingVote[]
-  onchain_votes       OnchainVote[]
-  result              ProposalResult?
-  treasury_txs        TreasuryTransaction[]
-  lottery_events      LotteryEvent[]
-}
-
-model ProposalVersion {
-  id             String   @id @default(uuid()) @db.Uuid
-  proposal_id    String   @db.Uuid
-  version_number Int
-  title          String
-  description    String   @db.Text
-  created_at     DateTime @default(now())
-
-  proposal       Proposal @relation(fields: [proposal_id], references: [id])
-}
-
-model SignalingVote {
-  id            String   @id @default(uuid()) @db.Uuid
-  proposal_id   String   @db.Uuid
-  user_id       String   @db.Uuid
-  vote_type     VoteType
-  voting_power  Decimal  @db.Decimal(20, 4)
-  created_at    DateTime @default(now())
-
-  proposal      Proposal @relation(fields: [proposal_id], references: [id])
-  user          User     @relation(fields: [user_id], references: [id])
-
-  @@unique([proposal_id, user_id])
-}
-
-model OnchainVote {
-  id               String   @id @default(uuid()) @db.Uuid
-  proposal_id      String   @db.Uuid
-  wallet_address   String
-  vote_type        VoteType
-  voting_power     Decimal  @db.Decimal(20, 4)
-  transaction_hash String   @unique
-  block_timestamp  DateTime
-
-  proposal         Proposal @relation(fields: [proposal_id], references: [id])
-
-  @@unique([proposal_id, wallet_address])
-}
-
-model ProposalResult {
-  id             String     @id @default(uuid()) @db.Uuid
-  proposal_id    String     @unique @db.Uuid
-  yes_votes      Decimal    @db.Decimal(20, 4) @default(0)
-  no_votes       Decimal    @db.Decimal(20, 4) @default(0)
-  abstain_votes  Decimal    @db.Decimal(20, 4) @default(0)
-  total_votes    Decimal    @db.Decimal(20, 4) @default(0)
-  source         VoteSource
-  finalized_at   DateTime?
-
-  proposal       Proposal   @relation(fields: [proposal_id], references: [id])
-}
-
-model TreasuryTransaction {
-  id               String   @id @default(uuid()) @db.Uuid
-  proposal_id      String   @db.Uuid
-  amount           Decimal  @db.Decimal(36, 18)
-  token_type       String
-  recipient_wallet String
-  transaction_hash String   @unique
-  executed_at      DateTime @default(now())
-
-  proposal         Proposal @relation(fields: [proposal_id], references: [id])
-}
-
-model ForumCategory {
-  id    String      @id @default(uuid()) @db.Uuid
-  name  String      @unique
-  posts ForumPost[]
-}
-
-model ForumPost {
-  id          String         @id @default(uuid()) @db.Uuid
-  category_id String         @db.Uuid
-  user_id     String         @db.Uuid
-  title       String
-  content     String         @db.Text
-  tags        String[]
-  created_at  DateTime       @default(now())
-
-  category    ForumCategory  @relation(fields: [category_id], references: [id])
-  author      User           @relation(fields: [user_id], references: [id])
-  comments    ForumComment[]
-}
-
-model ForumComment {
-  id         String   @id @default(uuid()) @db.Uuid
-  post_id    String   @db.Uuid
-  user_id    String   @db.Uuid
-  content    String   @db.Text
-  created_at DateTime @default(now())
-
-  post       ForumPost @relation(fields: [post_id], references: [id])
-  author     User      @relation(fields: [user_id], references: [id])
-}
-
-model LotteryEvent {
-  id           String               @id @default(uuid()) @db.Uuid
-  proposal_id  String               @db.Uuid
-  reward_pool  Decimal              @db.Decimal(36, 18)
-  status       LotteryStatus        @default(PENDING)
-  created_at   DateTime             @default(now())
-
-  proposal     Proposal             @relation(fields: [proposal_id], references: [id])
-  participants LotteryParticipant[]
-}
-
-model LotteryParticipant {
-  id               String       @id @default(uuid()) @db.Uuid
-  event_id         String       @db.Uuid
-  user_id          String       @db.Uuid
-  wallet_address   String
-  tickets          Int          @default(0)
-
-  event            LotteryEvent @relation(fields: [event_id], references: [id])
-  user             User         @relation(fields: [user_id], references: [id])
-
-  @@unique([event_id, user_id])
-}
-
-model RewardTransaction {
-  id               String     @id @default(uuid()) @db.Uuid
-  user_id          String     @db.Uuid
-  type             RewardType
-  amount           Decimal    @db.Decimal(36, 18)
-  reference_id     String?
-  transaction_hash String?
-  created_at       DateTime   @default(now())
-
-  user             User       @relation(fields: [user_id], references: [id])
-}
-
-model AuditLog {
-  id          String   @id @default(uuid()) @db.Uuid
-  user_id     String?  @db.Uuid
-  action      String
-  entity_type String
-  entity_id   String
-  metadata    Json?    @db.JsonB
-  ip_address  String?
-  created_at  DateTime @default(now())
-
-  user        User?    @relation(fields: [user_id], references: [id])
-}
-
-model HQWallet {
-  id                  String   @id @default(uuid()) @db.Uuid
-  hq                  String?  @unique
-  name                String   @default("scmn Treasury")
-  dfns_wallet_id      String
-  hedera_account_id   String
-  threshold           Int      @default(8)
-  total_members       Int      @default(15)
-  created_at          DateTime @default(now())
-
-  users               User[]
+enum ElectionStatus {
+  DRAFT
+  LIVE
+  CLOSED
+  CANCELLED
 }
