@@ -14,10 +14,12 @@ function memberUserJson(user: User) {
     name: user.name,
     nickname: user.nickname,
     email: user.email,
+    department: user.department,
     role: user.role,
     assigned_hq: user.hq,
     is_wallet_created: user.is_wallet_created,
     is_onboarded: user.is_onboarded,
+    created_at: user.created_at.toISOString(),
   };
 }
 
