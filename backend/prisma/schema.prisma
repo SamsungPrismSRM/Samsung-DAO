@@ -22,6 +22,7 @@ model User {
   name                   String
   nickname               String?
   email                  String               @unique
+  department             String?
   role                   Role                 @default(MEMBER)
   is_wallet_created      Boolean              @default(false)
   created_at             DateTime             @default(now())
@@ -35,9 +36,14 @@ model User {
   forum_comments         ForumComment[]
   forum_posts            ForumPost[]
   lottery_participations LotteryParticipant[]
+  lottery_entries        LotteryEntry[]
   proposals_created      Proposal[]
   reward_transactions    RewardTransaction[]
   signaling_votes        SignalingVote[]
+  election_votes         ElectionVote[]
+  delegations_out        Delegation[]         @relation("DelegationFrom")
+  delegations_in         Delegation[]         @relation("DelegationTo")
+  giveaway_entries       GiveawayEntry[]
   hq_record              HQ?                  @relation(fields: [hq], references: [id], map: "User_hq_record_fkey")
   hq_wallet              HQWallet?            @relation(fields: [hq_wallet_id], references: [id], map: "User_hq_wallet_fkey")
   wallets                Wallet[]
@@ -250,38 +256,88 @@ model Election {
   created_by           String?        @db.Uuid
   created_at           DateTime       @default(now())
   candidates           Candidate[]
+  votes                ElectionVote[]
 }
 
 model Candidate {
-  id          String   @id @default(uuid()) @db.Uuid
-  election_id String   @db.Uuid
+  id          String         @id @default(uuid()) @db.Uuid
+  election_id String         @db.Uuid
   name        String
   department  String?
-  created_at  DateTime @default(now())
-  election    Election @relation(fields: [election_id], references: [id], onDelete: Cascade)
+  created_at  DateTime       @default(now())
+  election    Election       @relation(fields: [election_id], references: [id], onDelete: Cascade)
+  votes       ElectionVote[]
+}
+
+model ElectionVote {
+  id           String    @id @default(uuid()) @db.Uuid
+  election_id  String    @db.Uuid
+  user_id      String    @db.Uuid
+  candidate_id String    @db.Uuid
+  created_at   DateTime  @default(now())
+  election     Election  @relation(fields: [election_id], references: [id], onDelete: Cascade)
+  user         User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  candidate    Candidate @relation(fields: [candidate_id], references: [id], onDelete: Cascade)
+
+  @@unique([election_id, user_id])
+}
+
+model Delegation {
+  id            String   @id @default(uuid()) @db.Uuid
+  from_user_id  String   @db.Uuid
+  to_user_id    String   @db.Uuid
+  created_at    DateTime @default(now())
+  from_user     User     @relation("DelegationFrom", fields: [from_user_id], references: [id], onDelete: Cascade)
+  to_user       User     @relation("DelegationTo", fields: [to_user_id], references: [id], onDelete: Cascade)
+
+  @@unique([from_user_id, to_user_id])
 }
 
 model Giveaway {
-  id             String   @id @default(uuid()) @db.Uuid
+  id             String          @id @default(uuid()) @db.Uuid
   title          String
   prize          String
   description    String?
   closes_at      DateTime
-  require_kyc    Boolean  @default(false)
-  allow_multiple Boolean  @default(false)
-  created_by     String?  @db.Uuid
-  created_at     DateTime @default(now())
+  require_kyc    Boolean         @default(false)
+  allow_multiple Boolean         @default(false)
+  created_by     String?         @db.Uuid
+  created_at     DateTime        @default(now())
+  entries        GiveawayEntry[]
 }
 
 model Lottery {
-  id                String   @id @default(uuid()) @db.Uuid
+  id                String         @id @default(uuid()) @db.Uuid
   title             String
   prize             String
   draw_date         DateTime
-  min_reputation    Int      @default(0)
-  is_onchain_random Boolean  @default(false)
-  created_by        String?  @db.Uuid
-  created_at        DateTime @default(now())
+  min_reputation    Int            @default(0)
+  is_onchain_random Boolean        @default(false)
+  created_by        String?        @db.Uuid
+  created_at        DateTime       @default(now())
+  entries           LotteryEntry[]
+}
+
+model GiveawayEntry {
+  id          String   @id @default(uuid()) @db.Uuid
+  giveaway_id String   @db.Uuid
+  user_id     String   @db.Uuid
+  created_at  DateTime @default(now())
+  giveaway    Giveaway @relation(fields: [giveaway_id], references: [id], onDelete: Cascade)
+  user        User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([giveaway_id, user_id])
+}
+
+model LotteryEntry {
+  id         String   @id @default(uuid()) @db.Uuid
+  lottery_id String   @db.Uuid
+  user_id    String   @db.Uuid
+  created_at DateTime @default(now())
+  lottery    Lottery  @relation(fields: [lottery_id], references: [id], onDelete: Cascade)
+  user       User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([lottery_id, user_id])
 }
 
 model VotingConfig {
