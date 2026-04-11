@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
 import { useAuthStore } from '@/stores/useAuthStore';
-import { User, Shield, Briefcase, Calendar, Mail, Tag, ExternalLink, Copy } from 'lucide-react';
+import { User, Shield, Briefcase, Calendar, Mail, Tag, Copy, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { memberApi } from '@/lib/memberApi';
 import { Skeleton } from '@/components/ui/skeleton';
-import { pairHashPackAndSignBindingMessage } from '@/lib/hashpackConnect';
 import { useWalletStore } from '@/stores/useWalletStore';
+import { connectMemberMetaMask } from '@/lib/memberWalletConnect';
+import { isMetaMaskInstalled } from '@/lib/metamask';
 
 type ProfilePayload = {
   id: string;
@@ -29,20 +30,26 @@ type ProfilePayload = {
 };
 
 export default function Profile() {
-  const { user, setWallets, freshToken } = useAuthStore();
+  const { user } = useAuthStore();
   const { connect } = useWalletStore();
   const [profile, setProfile] = useState<ProfilePayload | null>(null);
   const [loading, setLoading] = useState(true);
-  const [hashBusy, setHashBusy] = useState(false);
+  const [walletBusy, setWalletBusy] = useState(false);
+
+  const loadProfile = async () => {
+    try {
+      const { data } = await memberApi.get<ProfilePayload>('/user/profile');
+      setProfile(data);
+    } catch {
+      toast.error('Could not load profile');
+    }
+  };
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        const { data } = await memberApi.get<ProfilePayload>('/user/profile');
-        if (!cancelled) setProfile(data);
-      } catch {
-        if (!cancelled) toast.error('Could not load profile');
+        await loadProfile();
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -59,42 +66,27 @@ export default function Profile() {
     toast.success('Copied to clipboard');
   };
 
-  const getHashscanUrl = (accountId: string) => {
-    return `https://hashscan.io/testnet/account/${accountId}`;
-  };
-
-  const handleHashPack = async () => {
-    setHashBusy(true);
+  const handleMetaMask = async () => {
+    setWalletBusy(true);
     try {
-      const { accountId, message, signatureHex } = await pairHashPackAndSignBindingMessage();
-      const token = await freshToken();
-      if (!token) throw new Error('Not signed in');
-      const API_BASE = import.meta.env.VITE_API_BASE ?? 'http://localhost:3001/api/v1';
-      const res = await fetch(`${API_BASE}/wallet/connect`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ accountId, message, signatureHex }),
-      });
-      const body = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        throw new Error(typeof body?.error === 'string' ? body.error : 'Could not link HashPack');
+      if (!isMetaMaskInstalled()) {
+        toast.error('MetaMask not detected', {
+          description: 'Install MetaMask to connect your wallet.',
+          action: {
+            label: 'Install',
+            onClick: () => window.open('https://metamask.io/download/', '_blank'),
+          },
+        });
+        return;
       }
-      connect(accountId, 'HASHPACK');
-      const wRes = await fetch(`${API_BASE}/wallet/me`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const wJson = await wRes.json();
-      setWallets(wJson.wallets || []);
-      const { data } = await memberApi.get<ProfilePayload>('/user/profile');
-      setProfile(data);
-      toast.success('HashPack connected', { description: accountId });
+      const { address } = await connectMemberMetaMask();
+      connect(address, 'METAMASK');
+      await loadProfile();
+      toast.success('MetaMask connected', { description: address });
     } catch (e: unknown) {
-      toast.error(e instanceof Error ? e.message : 'HashPack failed');
+      toast.error(e instanceof Error ? e.message : 'Connection failed');
     } finally {
-      setHashBusy(false);
+      setWalletBusy(false);
     }
   };
 
@@ -109,6 +101,11 @@ export default function Profile() {
       </div>
     );
   }
+
+  const walletLabel =
+    primaryWallet?.hederaAccountId && primaryWallet.hederaAccountId.startsWith('0x')
+      ? 'Wallet address'
+      : 'Linked account';
 
   return (
     <div className="space-y-6 max-w-5xl">
@@ -193,11 +190,11 @@ export default function Profile() {
 
         <div className="space-y-6">
           <div className="glass-card rounded-2xl p-8 border border-border/50 bg-primary/5">
-            <h3 className="font-display text-lg font-bold text-foreground mb-6 flex items-center gap-2">
-              Hedera wallet
-              {primaryWallet?.hederaAccountId && (
+            <h3 className="font-display text-lg font-bold text-foreground mb-6 flex items-center gap-2 flex-wrap">
+              MetaMask · Hedera testnet
+              {primaryWallet?.connected && (
                 <span className="bg-primary/20 text-primary text-[9px] px-2 py-0.5 rounded-full font-bold uppercase tracking-widest shrink-0">
-                  Testnet
+                  Connected
                 </span>
               )}
             </h3>
@@ -208,11 +205,9 @@ export default function Profile() {
                   Wallet connected
                 </div>
                 <div>
-                  <p className="text-[10px] uppercase font-semibold text-muted-foreground mb-1">
-                    Hedera Account ID
-                  </p>
+                  <p className="text-[10px] uppercase font-semibold text-muted-foreground mb-1">{walletLabel}</p>
                   <div className="flex items-center gap-2 bg-background/50 p-2.5 rounded-lg border border-border/50">
-                    <p className="font-mono text-sm font-semibold flex-1 truncate">
+                    <p className="font-mono text-sm font-semibold flex-1 truncate break-all">
                       {primaryWallet.hederaAccountId}
                     </p>
                     <button
@@ -229,7 +224,7 @@ export default function Profile() {
                   <div>
                     <p className="text-[10px] uppercase font-semibold text-muted-foreground mb-1">Provider</p>
                     <p className="text-sm font-medium">
-                      {primaryWallet.walletType === 'HASHPACK' ? 'HashPack' : primaryWallet.walletType}
+                      {primaryWallet.walletType === 'METAMASK' ? 'MetaMask' : primaryWallet.walletType}
                     </p>
                   </div>
                   <div>
@@ -250,21 +245,20 @@ export default function Profile() {
                     </p>
                   )}
                 </div>
-
-                <div className="flex flex-col gap-2 sm:flex-row">
-                  <Button
-                    onClick={() => window.open(getHashscanUrl(primaryWallet.hederaAccountId!), '_blank')}
-                    className="flex-1 bg-primary text-primary-foreground font-semibold hover:bg-primary/90"
-                  >
-                    View on HashScan <ExternalLink className="h-4 w-4 ml-2" />
-                  </Button>
-                </div>
               </div>
             ) : (
               <div className="text-center py-6 space-y-4">
-                <p className="text-sm text-muted-foreground">Connect HashPack to link your Hedera account.</p>
-                <Button disabled={hashBusy} onClick={handleHashPack} className="w-full sm:w-auto">
-                  {hashBusy ? 'Connecting…' : 'Connect HashPack'}
+                {!isMetaMaskInstalled() && (
+                  <div className="flex items-start gap-3 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-left">
+                    <AlertTriangle className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
+                    <p className="text-xs text-amber-800 dark:text-amber-200">Install MetaMask to link your wallet.</p>
+                  </div>
+                )}
+                <p className="text-sm text-muted-foreground">
+                  Connect MetaMask on Hedera testnet and sign the verification message.
+                </p>
+                <Button disabled={walletBusy} onClick={handleMetaMask} className="w-full sm:w-auto">
+                  {walletBusy ? 'Connecting…' : 'Connect MetaMask'}
                 </Button>
               </div>
             )}

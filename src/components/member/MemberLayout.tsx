@@ -5,9 +5,17 @@ import { useAuthStore } from '@/stores/useAuthStore';
 import { useMemberDashboardStore } from '@/stores/useMemberDashboardStore';
 import { useMemberPortalStore } from '@/stores/useMemberPortalStore';
 
+function memberHasLinkedWallet(
+  user: { role?: string; is_wallet_created?: boolean } | null | undefined,
+  wallets: { length: number }
+) {
+  if (!user || user.role !== 'MEMBER') return true;
+  return Boolean(user.is_wallet_created && wallets.length > 0);
+}
+
 export function MemberLayout() {
   const navigate = useNavigate();
-  const { token, isHydrated } = useAuthStore();
+  const { token, isHydrated, user, wallets } = useAuthStore();
   const { loadMetrics } = useMemberDashboardStore();
   const syncUserFromAuth = useMemberPortalStore((s) => s.syncUserFromAuth);
   const syncWalletFromAuth = useMemberPortalStore((s) => s.syncWalletFromAuth);
@@ -20,7 +28,10 @@ export function MemberLayout() {
       navigate('/login', { replace: true });
       return;
     }
-  }, [isHydrated, token, navigate]);
+    if (!memberHasLinkedWallet(user, wallets)) {
+      navigate('/auth/member', { replace: true, state: { requireWallet: true } });
+    }
+  }, [isHydrated, token, user, wallets, navigate]);
 
   useEffect(() => {
     if (token) {

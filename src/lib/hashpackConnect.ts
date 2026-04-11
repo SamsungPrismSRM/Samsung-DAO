@@ -80,7 +80,8 @@ export async function pairHashPackAndSignBindingMessage(): Promise<{
   }
 
   const sig = sigs[0];
-  const signatureHex = Array.from(sig.signature, (b) => b.toString(16).padStart(2, '0')).join('');
+  const bytes = sig.signature instanceof Uint8Array ? sig.signature : new Uint8Array(sig.signature as ArrayLike<number>);
+  const signatureHex = Array.from(bytes, (b: number) => b.toString(16).padStart(2, '0')).join('');
 
   return { accountId, message, signatureHex };
 }
