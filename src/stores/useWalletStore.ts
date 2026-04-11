@@ -13,7 +13,7 @@ interface WalletState {
   isConnected: boolean;
   network: string;
   balance: string;
-  walletType: 'METAMASK' | 'DFNS' | null;
+  walletType: 'METAMASK' | 'DFNS' | 'HASHPACK' | null;
   isCustodial: boolean;
   hqAssignment: string | null;
   keyShards: KeyShard[];
@@ -39,7 +39,7 @@ export const useWalletStore = create<WalletState>((set) => ({
     isConnected: true,
     balance: '1,250.00',
     walletType,
-    isCustodial: walletType === 'DFNS'
+    isCustodial: walletType === 'DFNS',
   }),
 
   disconnect: () => set({
