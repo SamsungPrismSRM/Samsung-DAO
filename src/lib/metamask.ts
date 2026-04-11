@@ -17,10 +17,31 @@ export function isMetaMaskInstalled(): boolean {
   return typeof window !== 'undefined' && !!window.ethereum?.isMetaMask;
 }
 
+export async function switchNetworkToHederaTestnet(): Promise<void> {
+  if (!isMetaMaskInstalled()) return;
+  try {
+    const chainId = await window.ethereum!.request({ method: 'eth_chainId' });
+    if (chainId !== '0x128') {
+      await window.ethereum!.request({
+        method: 'wallet_switchEthereumChain',
+        params: [{ chainId: '0x128' }],
+      });
+    }
+  } catch (switchError: any) {
+    if (switchError.code === 4902) {
+      await addHederaTestnet();
+    } else {
+      throw switchError;
+    }
+  }
+}
+
 export async function connectMetaMask(): Promise<string> {
   if (!isMetaMaskInstalled()) {
     throw new Error('MetaMask is not installed. Please install MetaMask to continue.');
   }
+
+  await switchNetworkToHederaTestnet();
 
   const accounts = await window.ethereum!.request({
     method: 'eth_requestAccounts'
