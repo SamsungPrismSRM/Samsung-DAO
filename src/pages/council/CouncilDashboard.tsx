@@ -5,6 +5,7 @@ import { MetricCard } from '@/components/council/MetricCard';
 import { StatusBadge } from '@/components/council/StatusBadge';
 import { useCouncilGovStore } from '@/stores/useCouncilGovStore';
 import { useNavigate } from 'react-router-dom';
+import { DecisionActions } from '@/components/DecisionActions';
 
 export default function CouncilDashboard() {
   const metrics = useCouncilGovStore((s) => s.metrics);
@@ -15,6 +16,7 @@ export default function CouncilDashboard() {
   const pendingProposals = proposals.filter((p) =>
     ['DRAFT', 'SIGNALING', 'REVIEW'].includes(p.status)
   );
+  const queuedProposal = proposals.find((p) => p.status === 'QUEUED');
 
   return (
     <div>
@@ -29,6 +31,7 @@ export default function CouncilDashboard() {
           <Plus className="h-4 w-4" /> New rule
         </Button>
       </div>
+      <DecisionActions queuedOnchainProposalId={queuedProposal?.onchain_id ?? null} />
 
       {/* Metric cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">

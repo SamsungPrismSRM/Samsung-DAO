@@ -142,7 +142,9 @@ export const CouncilController = {
   // ── Giveaways ──
   async getGiveaways(_req: Request, res: Response) {
     try {
-      res.json(await EventService.listGiveaways());
+      const scope = typeof _req.query.scope === 'string' ? _req.query.scope : undefined;
+      const region = typeof _req.query.region === 'string' ? _req.query.region : undefined;
+      res.json(await EventService.listGiveaways(scope, region));
     } catch (e) {
       console.error('getGiveaways:', e);
       res.status(500).json({ error: 'Internal Server Error' });
@@ -166,7 +168,9 @@ export const CouncilController = {
   // ── Lotteries ──
   async getLotteries(_req: Request, res: Response) {
     try {
-      res.json(await EventService.listLotteries());
+      const scope = typeof _req.query.scope === 'string' ? _req.query.scope : undefined;
+      const region = typeof _req.query.region === 'string' ? _req.query.region : undefined;
+      res.json(await EventService.listLotteries(scope, region));
     } catch (e) {
       console.error('getLotteries:', e);
       res.status(500).json({ error: 'Internal Server Error' });

@@ -10,7 +10,7 @@ const getProvider = () => {
 
 // ABI for the Governance contract methods used by UI
 const governanceAbi = [
-    "function createProposal(string memory title) external",
+    "function createProposal(string memory title, uint8 scope, uint256 regionId) external",
     "function proposalCount() external view returns (uint)",
     "function proposals(uint) external view returns (uint id, string title, uint start, uint end, bool executed)"
 ];
@@ -27,10 +27,10 @@ export const getGovernanceContract = async () => {
     return governance;
 };
 
-export const createProposal = async (title: string) => {
+export const createProposal = async (title: string, scope = 1, regionId = 0) => {
     try {
         const governance = await getGovernanceContract();
-        const tx = await governance.createProposal(title);
+        const tx = await governance.createProposal(title, scope, regionId);
         await tx.wait();
         return { success: true, txHash: tx.hash };
     } catch (error) {

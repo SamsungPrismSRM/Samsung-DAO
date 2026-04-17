@@ -21,9 +21,10 @@ export class BlockchainListenerService {
     this.provider = new ethers.JsonRpcProvider(rpcUrl, undefined, { batchMaxCount: 1 });
 
     const abi = [
-      'event ProposalCreated(uint proposalId, string title, uint startBlock, uint endBlock)',
+      'event ProposalCreated(uint proposalId, uint8 scope, bytes32 region)',
       'event ProposalExecuted(uint proposalId)',
       'event ProposalCanceled(uint proposalId)',
+      'event VoteCast(uint proposalId, address voter, bool support, uint256 weight)',
     ];
 
     this.governanceContract = new ethers.Contract(governanceAddress, abi, this.provider);
@@ -56,8 +57,9 @@ export class BlockchainListenerService {
         if (!parsed) continue;
 
         const proposalId = Number(parsed.args[0]);
-        const title = parsed.args[1];
-        console.log(`[Listener] ProposalCreated: id=${proposalId} title="${title}"`);
+        const scope = Number(parsed.args[1]);
+        const region = parsed.args[2];
+        console.log(`[Listener] ProposalCreated: id=${proposalId} scope=${scope} region=${region}`);
 
         // If somehow a proposal was created on-chain but not in our DB, create it
         const exists = await prisma.proposal.findFirst({ where: { onchain_id: proposalId } });
@@ -66,7 +68,8 @@ export class BlockchainListenerService {
         }
 
         if (this.io) {
-          this.io.emit('governance_event', { type: 'ProposalCreated', proposalId, title });
+          this.io.emit('governance_event', { type: 'ProposalCreated', proposalId, scope, region });
+          this.io.emit('proposal_created', { onchain_id: proposalId, scope, region });
         }
       }
 
@@ -89,6 +92,21 @@ export class BlockchainListenerService {
         if (this.io) {
           this.io.emit('governance_event', { type: 'ProposalExecuted', proposalId });
           this.io.emit('proposal_updated', { onchain_id: proposalId, status: 'EXECUTED' });
+        }
+      }
+
+      const voteFilter = this.governanceContract.filters.VoteCast();
+      const voteEvents = await this.governanceContract.queryFilter(voteFilter, fromBlock, toBlock);
+      for (const ev of voteEvents) {
+        const parsed = this.governanceContract.interface.parseLog({ topics: ev.topics as string[], data: ev.data });
+        if (!parsed) continue;
+        const proposalId = Number(parsed.args[0]);
+        const voter = String(parsed.args[1]);
+        const support = Boolean(parsed.args[2]);
+        const weight = Number(parsed.args[3]);
+        if (this.io) {
+          this.io.emit('governance_event', { type: 'VoteCast', proposalId, voter, support, weight });
+          this.io.emit('proposal_updated', { onchain_id: proposalId });
         }
       }
 

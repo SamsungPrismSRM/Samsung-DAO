@@ -28,6 +28,7 @@ model User {
   created_at             DateTime             @default(now())
   alias                  String?
   hq                     String?
+  region                 ProposalRegion?
   is_onboarded           Boolean              @default(false)
   hq_wallet_id           String?              @db.Uuid
   reputation             Int                  @default(0)
@@ -71,6 +72,8 @@ model Proposal {
   description         String
   type                ProposalType
   status              ProposalStatus        @default(DRAFT)
+  scope               ProposalScope         @default(LOCAL)
+  region              ProposalRegion?
   ipfs_cid            String?
   onchain_proposal_id String?               @unique
   onchain_id          Int?                  @unique
@@ -249,6 +252,8 @@ model Election {
   title                String
   type                 String         @default("single_choice")
   status               ElectionStatus @default(DRAFT)
+  scope                ProposalScope  @default(GLOBAL)
+  region               ProposalRegion?
   start_date           DateTime
   end_date             DateTime
   require_reputation   Boolean        @default(false)
@@ -298,6 +303,8 @@ model Delegation {
 model Giveaway {
   id             String          @id @default(uuid()) @db.Uuid
   title          String
+  scope          ProposalScope   @default(GLOBAL)
+  region         ProposalRegion?
   prize          String
   description    String?
   closes_at      DateTime
@@ -311,6 +318,8 @@ model Giveaway {
 model Lottery {
   id                String         @id @default(uuid()) @db.Uuid
   title             String
+  scope             ProposalScope   @default(GLOBAL)
+  region            ProposalRegion?
   prize             String
   draw_date         DateTime
   min_reputation    Int            @default(0)
@@ -391,6 +400,17 @@ enum ProposalStatus {
   APPROVED
   REJECTED
   REVIEW
+}
+
+enum ProposalScope {
+  LOCAL
+  GLOBAL
+}
+
+enum ProposalRegion {
+  INDIA
+  KOREA
+  US
 }
 
 enum VoteType {

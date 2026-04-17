@@ -1,27 +1,70 @@
 import { Request, Response } from 'express';
-import { PrismaClient, ProposalType, Role } from '@prisma/client';
+import { PrismaClient, ProposalRegion, ProposalScope, ProposalType, Role, VoteType } from '@prisma/client';
 
 const prisma = new PrismaClient();
 const MAX_OUTGOING_DELEGATIONS = 5;
+const PROPOSAL_RATE_LIMIT_MS = 60_000;
+const lastProposalCreate = new Map<string, number>();
 
 function firebaseUid(req: Request): string | undefined {
   return (req as Request & { user?: { uid: string } }).user?.uid;
+}
+
+function resolveUserRegion(user: { region: ProposalRegion | null; hq_record?: { region: string } | null }): ProposalRegion | null {
+  if (user.region) return user.region;
+  const fallback = user.hq_record?.region?.toUpperCase();
+  if (fallback === 'INDIA' || fallback === 'KOREA' || fallback === 'US') {
+    return fallback as ProposalRegion;
+  }
+  return null;
 }
 
 export const MemberPortalController = {
   async listProposals(req: Request, res: Response) {
     const uid = firebaseUid(req);
     if (!uid) return res.status(401).json({ error: 'Unauthorized' });
+    const user = await prisma.user.findUnique({
+      where: { firebase_uid: uid },
+      include: { hq_record: true },
+    });
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    const userRegion = resolveUserRegion(user);
+
+    const scope =
+      req.query.scope === 'GLOBAL'
+        ? ProposalScope.GLOBAL
+        : req.query.scope === 'LOCAL'
+          ? ProposalScope.LOCAL
+          : undefined;
+    const where: Record<string, unknown> = {};
+    if (scope) {
+      where.scope = scope;
+      if (scope === ProposalScope.LOCAL) {
+        where.region = userRegion ?? undefined;
+      }
+    } else {
+      where.OR = [
+        { scope: ProposalScope.GLOBAL },
+        { scope: ProposalScope.LOCAL, region: userRegion ?? undefined },
+      ];
+    }
+
     const proposals = await prisma.proposal.findMany({
+      where,
       orderBy: { created_at: 'desc' },
       select: {
         id: true,
         title: true,
         description: true,
+        type: true,
         status: true,
+        scope: true,
+        region: true,
+        onchain_id: true,
         created_at: true,
         created_by: true,
         creator: { select: { name: true, email: true } },
+        signaling_votes: { select: { user_id: true, vote_type: true, voting_power: true } },
       },
     });
     res.json({ proposals });
@@ -32,16 +75,40 @@ export const MemberPortalController = {
     if (!uid) return res.status(401).json({ error: 'Unauthorized' });
     const title = typeof req.body?.title === 'string' ? req.body.title.trim() : '';
     const description = typeof req.body?.description === 'string' ? req.body.description.trim() : '';
+    const typeRaw = typeof req.body?.type === 'string' ? req.body.type.toUpperCase() : ProposalType.FEATURE;
+    const scopeRaw = typeof req.body?.scope === 'string' ? req.body.scope.toUpperCase() : ProposalScope.LOCAL;
     if (!title || !description) {
       return res.status(400).json({ error: 'title and description are required' });
     }
-    const user = await prisma.user.findUnique({ where: { firebase_uid: uid } });
+    const user = await prisma.user.findUnique({ where: { firebase_uid: uid }, include: { hq_record: true } });
     if (!user) return res.status(404).json({ error: 'User not found' });
+
+    const userRegion = resolveUserRegion(user);
+    const scope = scopeRaw === ProposalScope.GLOBAL ? ProposalScope.GLOBAL : ProposalScope.LOCAL;
+    if (scope === ProposalScope.GLOBAL && user.role !== Role.COUNCIL && user.role !== Role.ADMIN) {
+      return res.status(403).json({ error: 'Only council can create GLOBAL proposals' });
+    }
+    if (scope === ProposalScope.LOCAL && !userRegion) {
+      return res.status(400).json({ error: 'User region is required for LOCAL proposals' });
+    }
+
+    const last = lastProposalCreate.get(user.id) ?? 0;
+    if (Date.now() - last < PROPOSAL_RATE_LIMIT_MS) {
+      return res.status(429).json({ error: 'Proposal creation is rate-limited' });
+    }
+    lastProposalCreate.set(user.id, Date.now());
+
+    const proposalType = (Object.values(ProposalType) as string[]).includes(typeRaw)
+      ? (typeRaw as ProposalType)
+      : ProposalType.FEATURE;
+
     const proposal = await prisma.proposal.create({
       data: {
         title,
         description,
-        type: ProposalType.FEATURE,
+        type: proposalType,
+        scope,
+        region: scope === ProposalScope.LOCAL ? userRegion : null,
         created_by: user.id,
       },
     });
@@ -53,7 +120,51 @@ export const MemberPortalController = {
         entity_id: proposal.id,
       },
     });
+    const io = req.app.get('io');
+    io?.emit('proposal_created', proposal);
     res.status(201).json(proposal);
+  },
+
+  async voteOnProposal(req: Request, res: Response) {
+    const uid = firebaseUid(req);
+    if (!uid) return res.status(401).json({ error: 'Unauthorized' });
+    const proposalId = req.params.proposalId;
+    const voteTypeRaw = typeof req.body?.voteType === 'string' ? req.body.voteType.toUpperCase() : '';
+    if (!proposalId || !['YES', 'NO', 'ABSTAIN'].includes(voteTypeRaw)) {
+      return res.status(400).json({ error: 'proposalId and valid voteType are required' });
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { firebase_uid: uid },
+      include: { hq_record: true },
+    });
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    const proposal = await prisma.proposal.findUnique({ where: { id: proposalId } });
+    if (!proposal) return res.status(404).json({ error: 'Proposal not found' });
+
+    const userRegion = resolveUserRegion(user);
+    if (proposal.scope === ProposalScope.LOCAL && proposal.region !== userRegion) {
+      return res.status(403).json({ error: 'Cross-region voting is not allowed for LOCAL proposals' });
+    }
+
+    try {
+      const vote = await prisma.signalingVote.create({
+        data: {
+          proposal_id: proposal.id,
+          user_id: user.id,
+          vote_type: voteTypeRaw as VoteType,
+          voting_power: 100,
+        },
+      });
+      const io = req.app.get('io');
+      io?.emit('proposal_updated', { id: proposal.id, vote });
+      res.status(201).json({ vote });
+    } catch (e: unknown) {
+      if ((e as { code?: string }).code === 'P2002') {
+        return res.status(400).json({ error: 'You already voted on this proposal' });
+      }
+      throw e;
+    }
   },
 
   async castElectionVote(req: Request, res: Response) {
@@ -64,7 +175,7 @@ export const MemberPortalController = {
     if (!electionId || !candidateId) {
       return res.status(400).json({ error: 'electionId and candidateId are required' });
     }
-    const user = await prisma.user.findUnique({ where: { firebase_uid: uid } });
+    const user = await prisma.user.findUnique({ where: { firebase_uid: uid }, include: { hq_record: true } });
     if (!user) return res.status(404).json({ error: 'User not found' });
 
     const election = await prisma.election.findFirst({
@@ -170,8 +281,20 @@ export const MemberPortalController = {
     const user = await prisma.user.findUnique({ where: { firebase_uid: uid } });
     if (!user) return res.status(404).json({ error: 'User not found' });
 
+    const userRegion = resolveUserRegion(user);
+    const scope = req.query.scope === 'LOCAL' ? ProposalScope.LOCAL : req.query.scope === 'GLOBAL' ? ProposalScope.GLOBAL : undefined;
     const lottery = await prisma.lottery.findFirst({
-      where: { draw_date: { gt: new Date() } },
+      where: {
+        draw_date: { gt: new Date() },
+        ...(scope
+          ? {
+              scope,
+              ...(scope === ProposalScope.LOCAL ? { region: userRegion ?? undefined } : {}),
+            }
+          : {
+              OR: [{ scope: ProposalScope.GLOBAL }, { scope: ProposalScope.LOCAL, region: userRegion ?? undefined }],
+            }),
+      },
       orderBy: { draw_date: 'asc' },
     });
     if (!lottery) {
@@ -191,7 +314,7 @@ export const MemberPortalController = {
   async enterLottery(req: Request, res: Response) {
     const uid = firebaseUid(req);
     if (!uid) return res.status(401).json({ error: 'Unauthorized' });
-    const user = await prisma.user.findUnique({ where: { firebase_uid: uid } });
+    const user = await prisma.user.findUnique({ where: { firebase_uid: uid }, include: { hq_record: true } });
     if (!user) return res.status(404).json({ error: 'User not found' });
 
     const lotteryId =
@@ -205,9 +328,13 @@ export const MemberPortalController = {
           )?.id;
     if (!lotteryId) return res.status(404).json({ error: 'No open lottery' });
 
+    const userRegion = resolveUserRegion(user);
     const lottery = await prisma.lottery.findUnique({ where: { id: lotteryId } });
     if (!lottery || lottery.draw_date <= new Date()) {
       return res.status(400).json({ error: 'Lottery is not open' });
+    }
+    if (lottery.scope === ProposalScope.LOCAL && lottery.region !== userRegion) {
+      return res.status(403).json({ error: 'Cross-region lottery entry is not allowed' });
     }
     if (user.reputation < lottery.min_reputation) {
       return res.status(403).json({
@@ -232,11 +359,23 @@ export const MemberPortalController = {
   async getGiveaway(req: Request, res: Response) {
     const uid = firebaseUid(req);
     if (!uid) return res.status(401).json({ error: 'Unauthorized' });
-    const user = await prisma.user.findUnique({ where: { firebase_uid: uid } });
+    const user = await prisma.user.findUnique({ where: { firebase_uid: uid }, include: { hq_record: true } });
     if (!user) return res.status(404).json({ error: 'User not found' });
 
+    const userRegion = resolveUserRegion(user);
+    const scope = req.query.scope === 'LOCAL' ? ProposalScope.LOCAL : req.query.scope === 'GLOBAL' ? ProposalScope.GLOBAL : undefined;
     const giveaway = await prisma.giveaway.findFirst({
-      where: { closes_at: { gt: new Date() } },
+      where: {
+        closes_at: { gt: new Date() },
+        ...(scope
+          ? {
+              scope,
+              ...(scope === ProposalScope.LOCAL ? { region: userRegion ?? undefined } : {}),
+            }
+          : {
+              OR: [{ scope: ProposalScope.GLOBAL }, { scope: ProposalScope.LOCAL, region: userRegion ?? undefined }],
+            }),
+      },
       orderBy: { closes_at: 'asc' },
     });
     if (!giveaway) {
@@ -258,7 +397,7 @@ export const MemberPortalController = {
   async registerGiveaway(req: Request, res: Response) {
     const uid = firebaseUid(req);
     if (!uid) return res.status(401).json({ error: 'Unauthorized' });
-    const user = await prisma.user.findUnique({ where: { firebase_uid: uid } });
+    const user = await prisma.user.findUnique({ where: { firebase_uid: uid }, include: { hq_record: true } });
     if (!user) return res.status(404).json({ error: 'User not found' });
 
     const giveawayId =
@@ -272,9 +411,13 @@ export const MemberPortalController = {
           )?.id;
     if (!giveawayId) return res.status(404).json({ error: 'No open giveaway' });
 
+    const userRegion = resolveUserRegion(user);
     const giveaway = await prisma.giveaway.findUnique({ where: { id: giveawayId } });
     if (!giveaway || giveaway.closes_at <= new Date()) {
       return res.status(400).json({ error: 'Giveaway is closed' });
+    }
+    if (giveaway.scope === ProposalScope.LOCAL && giveaway.region !== userRegion) {
+      return res.status(403).json({ error: 'Cross-region giveaway registration is not allowed' });
     }
     if (giveaway.require_kyc && !user.is_onboarded) {
       return res.status(403).json({ error: 'Complete onboarding (KYC) to register' });

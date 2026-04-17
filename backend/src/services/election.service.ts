@@ -1,6 +1,17 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, ProposalRegion, ProposalScope } from '@prisma/client';
 
 const prisma = new PrismaClient();
+const REGIONS: ProposalRegion[] = ['INDIA', 'KOREA', 'US'];
+
+function normalizeScope(scope?: string): ProposalScope {
+  return scope === 'LOCAL' ? 'LOCAL' : 'GLOBAL';
+}
+
+function normalizeRegion(region?: string | null): ProposalRegion | null {
+  if (!region) return null;
+  const normalized = region.toUpperCase() as ProposalRegion;
+  return REGIONS.includes(normalized) ? normalized : null;
+}
 
 export const ElectionService = {
   async list() {
@@ -19,8 +30,15 @@ export const ElectionService = {
     allowDelegation?: boolean;
     snapshotEligibility?: boolean;
     candidates?: { name: string; department?: string }[];
+    scope?: string;
+    region?: string | null;
     createdBy?: string;
   }) {
+    const scope = normalizeScope(data.scope);
+    const region = normalizeRegion(data.region);
+    if (scope === 'LOCAL' && !region) {
+      throw new Error('LOCAL election requires region');
+    }
     const eligibleCount = await prisma.user.count({ where: { role: 'MEMBER' } });
     return prisma.election.create({
       data: {
@@ -32,6 +50,8 @@ export const ElectionService = {
         allow_delegation: data.allowDelegation ?? false,
         snapshot_eligibility: data.snapshotEligibility ?? false,
         eligible_count: eligibleCount,
+        scope,
+        region: scope === 'LOCAL' ? region : null,
         created_by: data.createdBy,
         candidates: data.candidates?.length
           ? { create: data.candidates.map((c) => ({ name: c.name, department: c.department })) }

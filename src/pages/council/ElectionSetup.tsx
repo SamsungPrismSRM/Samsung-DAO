@@ -20,6 +20,8 @@ export default function ElectionSetup() {
   const [creating, setCreating] = useState(false);
   const [title, setTitle] = useState('');
   const [type, setType] = useState('single_choice');
+  const [scope, setScope] = useState<'GLOBAL' | 'LOCAL'>('GLOBAL');
+  const [region, setRegion] = useState<'INDIA' | 'KOREA' | 'US' | ''>('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [requireRep, setRequireRep] = useState(false);
@@ -40,10 +42,16 @@ export default function ElectionSetup() {
       toast.error('Title, start date, and end date are required');
       return;
     }
+    if (scope === 'LOCAL' && !region) {
+      toast.error('Region is required for LOCAL election');
+      return;
+    }
     setSubmitting(true);
     try {
       const el = await createElection(token, {
         title, type, startDate, endDate,
+        scope,
+        region: scope === 'LOCAL' ? region : null,
         requireReputation: requireRep, allowDelegation, snapshotEligibility: snapshot,
         candidates: candidates.filter((c) => c.name.trim()),
       });
@@ -51,6 +59,7 @@ export default function ElectionSetup() {
       toast.success('Election created');
       setCreating(false);
       setTitle(''); setStartDate(''); setEndDate('');
+      setScope('GLOBAL'); setRegion('');
       setCandidates([{ name: '', department: '' }, { name: '', department: '' }]);
     } catch (e: any) {
       toast.error(e.message || 'Failed to create election');
@@ -98,6 +107,31 @@ export default function ElectionSetup() {
                 </SelectContent>
               </Select>
             </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">Scope</label>
+              <Select value={scope} onValueChange={(v) => setScope(v as 'GLOBAL' | 'LOCAL')}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="GLOBAL">Global</SelectItem>
+                  <SelectItem value="LOCAL">Local</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {scope === 'LOCAL' && (
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">Region</label>
+                <Select value={region} onValueChange={(v) => setRegion(v as 'INDIA' | 'KOREA' | 'US')}>
+                  <SelectTrigger><SelectValue placeholder="Select region" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="INDIA">INDIA</SelectItem>
+                    <SelectItem value="KOREA">KOREA</SelectItem>
+                    <SelectItem value="US">US</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
             <div>
@@ -154,7 +188,9 @@ export default function ElectionSetup() {
                 </p>
               </div>
             </div>
-            <span className="font-mono text-xs text-muted-foreground">{el.type.replace('_', ' ')}</span>
+            <span className="font-mono text-xs text-muted-foreground">
+              {el.type.replace('_', ' ')} · {el.scope ?? 'GLOBAL'}{el.scope === 'LOCAL' ? `/${el.region ?? '—'}` : ''}
+            </span>
           </motion.div>
         ))}
         {elections.length === 0 && !creating && (

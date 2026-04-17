@@ -1,5 +1,6 @@
 import { PrismaClient, ProposalStatus } from '@prisma/client';
 import { blockchainService } from './blockchain.service';
+import { ethers } from 'ethers';
 
 const prisma = new PrismaClient();
 
@@ -73,7 +74,9 @@ export class ProposalSyncService {
         try {
           console.log(`[ProposalSync] Escalating "${proposal.title}" (${proposal.id}) to on-chain...`);
 
-          const result = await blockchainService.createProposal(proposal.title);
+          const scope = proposal.scope === 'LOCAL' ? 0 : 1;
+          const region = proposal.region ? ethers.encodeBytes32String(proposal.region) : ethers.ZeroHash;
+          const result = await blockchainService.createProposal(proposal.title, scope, region);
 
           await prisma.proposal.update({
             where: { id: proposal.id },

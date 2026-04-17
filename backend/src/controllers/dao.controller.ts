@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, ProposalScope, Role, VoteType } from '@prisma/client';
 import { ethers } from 'ethers';
 import { blockchainService } from '../services/blockchain.service';
 import { DfnsService } from '../services/dfns.service';
@@ -10,21 +10,36 @@ export class DaoController {
   
   static async createProposal(req: Request, res: Response) {
     try {
-      const { title, description } = req.body;
+      const { title, description, scope, region } = req.body;
       const userId = req.user?.uid;
       
       if (!userId) {
         return res.status(401).json({ error: 'Unauthorized' });
       }
 
-      // Stage 1: Store strictly off-chain as a Signaling Poll
+      const user = await prisma.user.findUnique({
+        where: { firebase_uid: userId },
+        include: { hq_record: true },
+      });
+      if (!user) return res.status(404).json({ error: 'User not found' });
+      const normalizedScope = scope === 'LOCAL' ? ProposalScope.LOCAL : ProposalScope.GLOBAL;
+      const normalizedRegion =
+        normalizedScope === ProposalScope.LOCAL
+          ? ((region ?? user.region ?? user.hq_record?.region ?? '').toUpperCase() || null)
+          : null;
+      if (normalizedScope === ProposalScope.LOCAL && !normalizedRegion) {
+        return res.status(400).json({ error: 'LOCAL proposal requires region' });
+      }
+
       const proposal = await prisma.proposal.create({
         data: {
           title,
           description: description || '',
           type: 'FEATURE',
           status: 'SIGNALING',
-          created_by: userId,
+          scope: normalizedScope,
+          region: normalizedScope === ProposalScope.LOCAL ? normalizedRegion : null,
+          created_by: user.id,
           start_time: new Date(),
         }
       });
@@ -44,6 +59,10 @@ export class DaoController {
       if (!userId) {
         return res.status(401).json({ error: 'Unauthorized' });
       }
+      const user = await prisma.user.findUnique({ where: { firebase_uid: userId } });
+      if (!user || (user.role !== Role.COUNCIL && user.role !== Role.ADMIN)) {
+        return res.status(403).json({ error: 'Only council can push proposal on-chain' });
+      }
 
       const proposal = await prisma.proposal.findUnique({
         where: { id: proposalId }
@@ -54,7 +73,9 @@ export class DaoController {
       }
       
       // Stage 2: Push poll data into EVM Governance layer
-      const bcRes = await blockchainService.createProposal(proposal.title);
+      const scopeValue = proposal.scope === ProposalScope.LOCAL ? 0 : 1;
+      const regionBytes = proposal.region ? ethers.encodeBytes32String(proposal.region) : ethers.ZeroHash;
+      const bcRes = await blockchainService.createProposal(proposal.title, scopeValue, regionBytes);
 
       const escalatedProposal = await prisma.proposal.update({
         where: { id: proposal.id },
@@ -80,9 +101,22 @@ export class DaoController {
         return res.status(401).json({ error: 'Unauthorized' });
       }
 
-      // Votes happen directly on-chain via governanceContract.ts (frontend).
-      // Here the backend can record an off-chain representation of it, or mirror integration ensures it.
-      // Assuming frontend handles on-chain vote, we just log it locally for fast UI load.
+      const user = await prisma.user.findUnique({ where: { firebase_uid: userId }, include: { hq_record: true } });
+      if (!user) return res.status(404).json({ error: 'User not found' });
+      const proposal = await prisma.proposal.findUnique({ where: { id: String(proposalId) } });
+      if (!proposal) return res.status(404).json({ error: 'Proposal not found' });
+      const userRegion = user.region ?? ((user.hq_record?.region?.toUpperCase() as any) || null);
+      if (proposal.scope === ProposalScope.LOCAL && proposal.region !== userRegion) {
+        return res.status(403).json({ error: 'Cross-region vote blocked' });
+      }
+      await prisma.signalingVote.create({
+        data: {
+          proposal_id: proposal.id,
+          user_id: user.id,
+          vote_type: support ? VoteType.YES : VoteType.NO,
+          voting_power: 100,
+        },
+      });
       
       return res.status(200).json({ success: true, message: "Vote noted. Verify on-chain execution." });
     } catch (error: any) {
@@ -94,6 +128,12 @@ export class DaoController {
   static async executeProposal(req: Request, res: Response) {
     try {
       const { proposalId, hqWalletId, to, amount } = req.body;
+      const userId = req.user?.uid;
+      if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+      const user = await prisma.user.findUnique({ where: { firebase_uid: userId } });
+      if (!user || (user.role !== Role.COUNCIL && user.role !== Role.ADMIN)) {
+        return res.status(403).json({ error: 'Only COUNCIL_ROLE can execute' });
+      }
       
       // 1. Check block state
       const state = await blockchainService.getProposalState(Number(proposalId));
@@ -121,6 +161,8 @@ export class DaoController {
         data: { status: 'EXECUTED' }
       });
 
+      const io = req.app.get('io');
+      io?.emit('proposal_executed', { id: proposal.id, onchain_id: proposal.onchain_id });
       return res.status(200).json({ success: true, message: "Proposal Executed" });
     } catch (error: any) {
       console.error("DaoController.execute error:", error);

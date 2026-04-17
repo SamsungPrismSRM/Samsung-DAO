@@ -23,8 +23,8 @@ export class BlockchainService {
         : ethers.Wallet.createRandom(this.provider);
 
     const governanceAbi = [
-      "function createProposal(string memory title) external",
-      "function proposals(uint) external view returns (uint id, string title, uint startBlock, uint endBlock, bool executed, bool canceled)",
+      "function createProposal(string memory title, uint8 scope, bytes32 region) external",
+      "function proposals(uint) external view returns (uint id, string title, uint8 scope, bytes32 region, uint startBlock, uint endBlock, bool executed, bool canceled)",
       "function timelock() external view returns (address)",
       "function proposalCount() external view returns (uint)"
     ];
@@ -36,10 +36,10 @@ export class BlockchainService {
     );
   }
 
-  public async createProposal(title: string) {
+  public async createProposal(title: string, scope = 1, region = ethers.ZeroHash) {
     try {
-      const tx = await this.governanceContract.createProposal(title);
-      const receipt = await tx.wait();
+      const tx = await this.governanceContract.createProposal(title, scope, region);
+      await tx.wait();
       
       const count = await this.governanceContract.proposalCount();
       const newProposalId = Number(count); // The newly created proxy ID
@@ -65,6 +65,8 @@ export class BlockchainService {
       return {
         id: Number(p.id),
         title: p.title,
+        scope: Number(p.scope),
+        region: p.region,
         start: Number(p.startBlock),
         end: Number(p.endBlock),
         executed: p.executed,

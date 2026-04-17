@@ -4,6 +4,7 @@ import { Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ToggleRow } from '@/components/council/ToggleRow';
 import { useCouncilGovStore } from '@/stores/useCouncilGovStore';
 import { useAuthStore } from '@/stores/useAuthStore';
@@ -20,6 +21,8 @@ export default function GiveawaySetup() {
   const [title, setTitle] = useState('');
   const [prize, setPrize] = useState('');
   const [description, setDescription] = useState('');
+  const [scope, setScope] = useState<'GLOBAL' | 'LOCAL'>('GLOBAL');
+  const [region, setRegion] = useState<'INDIA' | 'KOREA' | 'US' | ''>('');
   const [closesAt, setClosesAt] = useState('');
   const [requireKyc, setRequireKyc] = useState(true);
   const [allowMultiple, setAllowMultiple] = useState(false);
@@ -30,13 +33,26 @@ export default function GiveawaySetup() {
       toast.error('Title, prize, and close date are required');
       return;
     }
+    if (scope === 'LOCAL' && !region) {
+      toast.error('Region is required for LOCAL giveaway');
+      return;
+    }
     setSubmitting(true);
     try {
-      const g = await createGiveaway(token, { title, prize, description, closesAt, requireKyc, allowMultiple });
+      const g = await createGiveaway(token, {
+        title,
+        prize,
+        description,
+        closesAt,
+        requireKyc,
+        allowMultiple,
+        scope,
+        region: scope === 'LOCAL' ? region : null,
+      });
       addGiveaway(g);
       toast.success('Giveaway created');
       setCreating(false);
-      setTitle(''); setPrize(''); setDescription(''); setClosesAt('');
+      setTitle(''); setPrize(''); setDescription(''); setClosesAt(''); setScope('GLOBAL'); setRegion('');
     } catch (e: any) {
       toast.error(e.message || 'Failed to create giveaway');
     } finally {
@@ -79,6 +95,31 @@ export default function GiveawaySetup() {
             <label className="text-xs font-medium text-muted-foreground mb-1 block">Closes at</label>
             <Input type="datetime-local" value={closesAt} onChange={(e) => setClosesAt(e.target.value)} className="max-w-sm" />
           </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">Scope</label>
+              <Select value={scope} onValueChange={(v) => setScope(v as 'GLOBAL' | 'LOCAL')}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="GLOBAL">Global</SelectItem>
+                  <SelectItem value="LOCAL">Local</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {scope === 'LOCAL' && (
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">Region</label>
+                <Select value={region} onValueChange={(v) => setRegion(v as 'INDIA' | 'KOREA' | 'US')}>
+                  <SelectTrigger><SelectValue placeholder="Select region" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="INDIA">INDIA</SelectItem>
+                    <SelectItem value="KOREA">KOREA</SelectItem>
+                    <SelectItem value="US">US</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+          </div>
           <ToggleRow title="Require KYC verification" description="Only KYC-verified members can enter" checked={requireKyc} onCheckedChange={setRequireKyc} />
           <ToggleRow title="Allow multiple entries" description="Members can register more than once" checked={allowMultiple} onCheckedChange={setAllowMultiple} />
           <div className="flex gap-3 mt-4">
@@ -101,7 +142,7 @@ export default function GiveawaySetup() {
               </p>
             </div>
             <span className="text-xs text-muted-foreground font-mono">
-              {new Date(g.closes_at) > new Date() ? 'Open' : 'Closed'}
+              {(new Date(g.closes_at) > new Date() ? 'Open' : 'Closed')} · {g.scope ?? 'GLOBAL'}{g.scope === 'LOCAL' ? `/${g.region ?? '—'}` : ''}
             </span>
           </motion.div>
         ))}

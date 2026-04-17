@@ -4,6 +4,7 @@ import { Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ToggleRow } from '@/components/council/ToggleRow';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useCouncilGovStore } from '@/stores/useCouncilGovStore';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { createLottery } from '@/services/councilService';
@@ -18,6 +19,8 @@ export default function LotteryConfig() {
   const [creating, setCreating] = useState(false);
   const [title, setTitle] = useState('');
   const [prize, setPrize] = useState('');
+  const [scope, setScope] = useState<'GLOBAL' | 'LOCAL'>('GLOBAL');
+  const [region, setRegion] = useState<'INDIA' | 'KOREA' | 'US' | ''>('');
   const [drawDate, setDrawDate] = useState('');
   const [minRep, setMinRep] = useState(100);
   const [onchain, setOnchain] = useState(true);
@@ -28,15 +31,25 @@ export default function LotteryConfig() {
       toast.error('Title, prize, and draw date are required');
       return;
     }
+    if (scope === 'LOCAL' && !region) {
+      toast.error('Region is required for LOCAL lottery');
+      return;
+    }
     setSubmitting(true);
     try {
       const l = await createLottery(token, {
-        title, prize, drawDate, minReputation: minRep, isOnchainRandom: onchain,
+        title,
+        prize,
+        drawDate,
+        minReputation: minRep,
+        isOnchainRandom: onchain,
+        scope,
+        region: scope === 'LOCAL' ? region : null,
       });
       addLottery(l);
       toast.success('Lottery created');
       setCreating(false);
-      setTitle(''); setPrize(''); setDrawDate('');
+      setTitle(''); setPrize(''); setDrawDate(''); setScope('GLOBAL'); setRegion('');
     } catch (e: any) {
       toast.error(e.message || 'Failed to create lottery');
     } finally {
@@ -73,6 +86,31 @@ export default function LotteryConfig() {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
             <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">Scope</label>
+              <Select value={scope} onValueChange={(v) => setScope(v as 'GLOBAL' | 'LOCAL')}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="GLOBAL">Global</SelectItem>
+                  <SelectItem value="LOCAL">Local</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {scope === 'LOCAL' && (
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">Region</label>
+                <Select value={region} onValueChange={(v) => setRegion(v as 'INDIA' | 'KOREA' | 'US')}>
+                  <SelectTrigger><SelectValue placeholder="Select region" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="INDIA">INDIA</SelectItem>
+                    <SelectItem value="KOREA">KOREA</SelectItem>
+                    <SelectItem value="US">US</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <div>
               <label className="text-xs font-medium text-muted-foreground mb-1 block">Draw date</label>
               <Input type="datetime-local" value={drawDate} onChange={(e) => setDrawDate(e.target.value)} />
             </div>
@@ -103,7 +141,7 @@ export default function LotteryConfig() {
               </p>
             </div>
             <span className="text-xs text-muted-foreground font-mono">
-              {l.is_onchain_random ? 'VRF' : 'Off-chain'} · {l.min_reputation}+ pts
+              {l.is_onchain_random ? 'VRF' : 'Off-chain'} · {l.min_reputation}+ pts · {l.scope ?? 'GLOBAL'}{l.scope === 'LOCAL' ? `/${l.region ?? '—'}` : ''}
             </span>
           </motion.div>
         ))}

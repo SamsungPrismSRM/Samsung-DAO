@@ -58,6 +58,7 @@ proposalRouter.get('/', requireAuth, MemberPortalController.listProposals);
 proposalRouter.get('/all', ProposalController.getAll);          // Public: synced proposals
 proposalRouter.get('/:id', ProposalController.getById);         // Public: single proposal
 proposalRouter.post('/', requireAuth, MemberPortalController.createProposalDraft);
+proposalRouter.post('/:proposalId/vote', requireAuth, MemberPortalController.voteOnProposal);
 proposalRouter.post('/draft', requireAuth, ProposalController.createDraft);
 proposalRouter.post('/:proposalId/publish', requireAuth, ProposalController.publishProposal);
 proposalRouter.post('/:proposalId/signaling-vote', requireAuth, ProposalController.castSignalingVote);
@@ -141,6 +142,19 @@ daoRouter.post('/vote', requireAuth, DaoController.vote);
 daoRouter.post('/execute', requireAuth, DaoController.executeProposal);
 daoRouter.post('/oracle/confirm', requireAuth, DaoController.confirmOracleSync);
 app.use('/api/v1/dao', daoRouter);
+
+// Compatibility REST routes requested by governance spec
+const legacyApiRouter = express.Router();
+legacyApiRouter.post('/proposal/create', requireAuth, MemberPortalController.createProposalDraft);
+legacyApiRouter.post('/proposal/onchain', requireAuth, DaoController.escalateToOnchain);
+legacyApiRouter.get('/proposals', requireAuth, MemberPortalController.listProposals);
+legacyApiRouter.post('/vote', requireAuth, DaoController.vote);
+legacyApiRouter.post('/lottery/join', requireAuth, MemberPortalController.enterLottery);
+legacyApiRouter.post('/giveaway/join', requireAuth, MemberPortalController.registerGiveaway);
+legacyApiRouter.post('/council/lottery/create', requireAuth, CouncilController.createLottery);
+legacyApiRouter.post('/council/giveaway/create', requireAuth, CouncilController.createGiveaway);
+legacyApiRouter.post('/council/election/create', requireAuth, CouncilController.createElection);
+app.use('/api', legacyApiRouter);
 
 // Health check
 app.get('/health', (req: express.Request, res: express.Response) => {

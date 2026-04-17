@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { memberApi } from '@/lib/memberApi';
 import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 type LotteryModel = {
   id: string;
@@ -18,15 +19,16 @@ export default function Lottery() {
   const [entryCount, setEntryCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [scope, setScope] = useState<'GLOBAL' | 'LOCAL'>('GLOBAL');
 
-  const load = async () => {
+  const load = async (nextScope: 'GLOBAL' | 'LOCAL' = scope) => {
     setLoading(true);
     try {
       const { data } = await memberApi.get<{
         lottery: LotteryModel | null;
         entered: boolean;
         entryCount: number;
-      }>('/lottery');
+      }>(`/lottery?scope=${nextScope}`);
       setLottery(data.lottery);
       setEntered(data.entered);
       setEntryCount(data.entryCount);
@@ -38,8 +40,8 @@ export default function Lottery() {
   };
 
   useEffect(() => {
-    load();
-  }, []);
+    load(scope);
+  }, [scope]);
 
   const handleEnter = async () => {
     if (!lottery) return;
@@ -66,6 +68,12 @@ export default function Lottery() {
         <h1 className="font-display text-2xl font-bold text-foreground">Lottery</h1>
         <p className="text-sm text-muted-foreground mt-1">Enter active lotteries to win SPU rewards</p>
       </div>
+      <Tabs value={scope} onValueChange={(v) => setScope(v as 'GLOBAL' | 'LOCAL')}>
+        <TabsList>
+          <TabsTrigger value="GLOBAL">Global</TabsTrigger>
+          <TabsTrigger value="LOCAL">My Region</TabsTrigger>
+        </TabsList>
+      </Tabs>
 
       {loading ? (
         <Skeleton className="h-56 rounded-xl" />

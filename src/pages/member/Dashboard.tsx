@@ -4,6 +4,7 @@ import { useMemberDashboardStore } from '@/stores/useMemberDashboardStore';
 import { Ticket, FileText, Gift } from 'lucide-react';
 import { proposalStatusUi } from '@/lib/proposalStatusUi';
 import { Skeleton } from '@/components/ui/skeleton';
+import { DecisionActions } from '@/components/DecisionActions';
 
 type CandidateRow = {
   id: string;
@@ -61,6 +62,7 @@ export default function Dashboard() {
   return (
     <div className="space-y-6">
       <h1 className="font-display text-2xl font-bold text-foreground">Dashboard</h1>
+      <DecisionActions onRefresh={loadDashboard} />
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {[

@@ -9,7 +9,7 @@ const getProvider = () => {
 
 // ABI matching your Solidity implementation
 const governanceAbi = [
-    "function createProposal(string memory title) external",
+    "function createProposal(string memory title, uint8 scope, uint256 regionId) external",
     "function proposalCount() external view returns (uint)",
     "function proposals(uint) external view returns (uint id, string title, uint start, uint end, bool executed)",
     "function voting() external view returns (address)",
@@ -41,10 +41,10 @@ export const getVotingContract = async (governance: ethers.Contract, signer: eth
     return new ethers.Contract(votingAddress, votingAbi, signer);
 };
 
-export const createProposal = async (title: string) => {
+export const createProposal = async (title: string, scope = 1, regionId = 0) => {
     try {
         const governance = await getGovernanceContract();
-        const tx = await governance.createProposal(title);
+        const tx = await governance.createProposal(title, scope, regionId);
         const receipt = await tx.wait();
         return { success: true, txHash: tx.hash, receipt };
     } catch (error) {

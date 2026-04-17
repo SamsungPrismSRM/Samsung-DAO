@@ -52,6 +52,8 @@ export async function updateVotingConfig(token: string | null, key: string, valu
 // ── Elections ──
 export type ElectionItem = {
   id: string; title: string; type: string; status: string;
+  scope?: 'LOCAL' | 'GLOBAL';
+  region?: 'INDIA' | 'KOREA' | 'US' | null;
   start_date: string; end_date: string;
   require_reputation: boolean; allow_delegation: boolean; snapshot_eligibility: boolean;
   eligible_count: number; candidates: { id: string; name: string; department: string | null }[];
@@ -89,6 +91,8 @@ export async function rejectProposal(token: string | null, id: string) {
 // ── Giveaways ──
 export type GiveawayItem = {
   id: string; title: string; prize: string; description: string | null;
+  scope?: 'LOCAL' | 'GLOBAL';
+  region?: 'INDIA' | 'KOREA' | 'US' | null;
   closes_at: string; require_kyc: boolean; allow_multiple: boolean; created_at: string;
 };
 export async function fetchGiveaways(token: string | null) {
@@ -103,6 +107,8 @@ export async function createGiveaway(token: string | null, data: Record<string, 
 // ── Lotteries ──
 export type LotteryItem = {
   id: string; title: string; prize: string;
+  scope?: 'LOCAL' | 'GLOBAL';
+  region?: 'INDIA' | 'KOREA' | 'US' | null;
   draw_date: string; min_reputation: number; is_onchain_random: boolean; created_at: string;
 };
 export async function fetchLotteries(token: string | null) {
