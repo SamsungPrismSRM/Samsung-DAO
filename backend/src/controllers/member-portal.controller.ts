@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { PrismaClient, ProposalType, Role } from '@prisma/client';
+import { auditService } from '../services/audit.service';
 
 const prisma = new PrismaClient();
 const MAX_OUTGOING_DELEGATIONS = 5;
@@ -45,13 +46,13 @@ export const MemberPortalController = {
         created_by: user.id,
       },
     });
-    await prisma.auditLog.create({
-      data: {
-        user_id: user.id,
-        action: 'MEMBER_CREATED_DRAFT_PROPOSAL',
-        entity_type: 'PROPOSAL',
-        entity_id: proposal.id,
-      },
+    void auditService.logAction({
+      userId: user.id,
+      action: 'PROPOSAL_CREATED',
+      entityType: 'PROPOSAL',
+      entityId: proposal.id,
+      metadata: { title, type: ProposalType.FEATURE },
+      ipAddress: req.ip,
     });
     res.status(201).json(proposal);
   },
@@ -88,6 +89,14 @@ export const MemberPortalController = {
           user_id: user.id,
           candidate_id: candidateId,
         },
+      });
+      void auditService.logAction({
+        userId: user.id,
+        action: 'ELECTION_VOTE_CAST',
+        entityType: 'ELECTION',
+        entityId: electionId,
+        metadata: { candidateId, electionTitle: election.title },
+        ipAddress: req.ip,
       });
       res.status(201).json({ vote });
     } catch (e: unknown) {
@@ -130,6 +139,14 @@ export const MemberPortalController = {
           to_user: { select: { id: true, name: true, email: true, department: true } },
         },
       });
+      void auditService.logAction({
+        userId: fromUser.id,
+        action: 'DELEGATION_CREATED',
+        entityType: 'DELEGATION',
+        entityId: d.id,
+        metadata: { toUserId: toUser.id, toEmail: toUser.email, toName: toUser.name },
+        ipAddress: req.ip,
+      });
       res.status(201).json({
         delegation: {
           id: d.id,
@@ -161,6 +178,13 @@ export const MemberPortalController = {
     if (!row) return res.status(404).json({ error: 'Delegation not found' });
 
     await prisma.delegation.delete({ where: { id } });
+    void auditService.logAction({
+      userId: fromUser.id,
+      action: 'DELEGATION_REVOKED',
+      entityType: 'DELEGATION',
+      entityId: id,
+      ipAddress: req.ip,
+    });
     res.json({ ok: true });
   },
 
@@ -220,6 +244,14 @@ export const MemberPortalController = {
         data: { lottery_id: lotteryId, user_id: user.id },
       });
       const entryCount = await prisma.lotteryEntry.count({ where: { lottery_id: lotteryId } });
+      void auditService.logAction({
+        userId: user.id,
+        action: 'LOTTERY_ENTERED',
+        entityType: 'LOTTERY',
+        entityId: lotteryId,
+        metadata: { lotteryTitle: lottery.title, prize: lottery.prize },
+        ipAddress: req.ip,
+      });
       res.status(201).json({ ok: true, entered: true, entryCount });
     } catch (e: unknown) {
       if ((e as { code?: string }).code === 'P2002') {
@@ -286,6 +318,14 @@ export const MemberPortalController = {
       });
       const registeredCount = await prisma.giveawayEntry.count({
         where: { giveaway_id: giveawayId },
+      });
+      void auditService.logAction({
+        userId: user.id,
+        action: 'GIVEAWAY_REGISTERED',
+        entityType: 'GIVEAWAY',
+        entityId: giveawayId,
+        metadata: { giveawayTitle: giveaway.title, prize: giveaway.prize },
+        ipAddress: req.ip,
       });
       res.status(201).json({ ok: true, registered: true, registeredCount });
     } catch (e: unknown) {

@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import type { User } from '@prisma/client';
 import { AuthService } from '../services/auth.service';
 import { assertFirebaseGoogleIsSamsungSso } from '../utils/samsung-sso';
+import { auditService } from '../services/audit.service';
 
 type AuthedRequest = Request & {
   user?: { uid: string; email?: string; name?: string; signInProvider?: string };
@@ -43,6 +44,15 @@ export const AuthController = {
         name: authReq.user.name,
       });
 
+      void auditService.logAction({
+        userId: user.id,
+        action: 'USER_LOGIN',
+        entityType: 'USER',
+        entityId: user.id,
+        metadata: { email: user.email, role: user.role, method: 'member' },
+        ipAddress: req.ip,
+      });
+
       return res.json({ user: memberUserJson(user) });
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Internal Server Error';
@@ -68,6 +78,14 @@ export const AuthController = {
       }
 
       const user = await AuthService.memberOnboard(authReq.user.uid, nickname);
+      void auditService.logAction({
+        userId: user.id,
+        action: 'USER_ONBOARD',
+        entityType: 'USER',
+        entityId: user.id,
+        metadata: { nickname, email: user.email },
+        ipAddress: req.ip,
+      });
       return res.json({ user: memberUserJson(user) });
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Internal Server Error';
@@ -100,6 +118,15 @@ export const AuthController = {
       const timezone = req.body.timezone || "UTC";
 
       const result = await AuthService.councilLogin({ uid, email }, timezone);
+
+      void auditService.logAction({
+        userId: result.user.id,
+        action: 'COUNCIL_LOGIN',
+        entityType: 'USER',
+        entityId: result.user.id,
+        metadata: { email: result.user.email, hq: result.user.hq, timezone },
+        ipAddress: req.ip,
+      });
 
       return res.json({
         user: result.user,

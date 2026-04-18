@@ -19,6 +19,7 @@ import { blockchainListenerService } from './services/blockchain-listener.servic
 import { CouncilController } from './controllers/council.controller';
 import { MemberController } from './controllers/member.controller';
 import { MemberPortalController } from './controllers/member-portal.controller';
+import { AuditController } from './controllers/audit.controller';
 import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
@@ -132,6 +133,12 @@ councilRouter.post('/giveaways', requireAuth, CouncilController.createGiveaway);
 councilRouter.get('/lotteries', requireAuth, CouncilController.getLotteries);
 councilRouter.post('/lotteries', requireAuth, CouncilController.createLottery);
 app.use('/api/v1/council', councilRouter);
+
+// Audit Log Routes (council/admin only)
+const auditRouter = express.Router();
+auditRouter.get('/', requireAuth, AuditController.getLogs);
+auditRouter.get('/stats', requireAuth, AuditController.getStats);
+app.use('/api/v1/audit-logs', auditRouter);
 
 // DAO Execution Routes
 const daoRouter = express.Router();

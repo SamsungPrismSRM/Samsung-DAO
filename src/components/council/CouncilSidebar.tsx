@@ -2,7 +2,7 @@ import { NavLink, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import {
   LayoutDashboard, FileText, Wrench, Vote, Settings2,
-  Gift, Ticket, ChevronLeft
+  Gift, Ticket, ChevronLeft, ShieldCheck
 } from 'lucide-react';
 import { useCouncilGovStore } from '@/stores/useCouncilGovStore';
 
@@ -27,6 +27,12 @@ const sections = [
     items: [
       { label: 'Giveaway setup', to: '/council/giveaways', icon: Gift },
       { label: 'Lottery config', to: '/council/lotteries', icon: Ticket },
+    ],
+  },
+  {
+    title: 'SECURITY',
+    items: [
+      { label: 'Audit logs', to: '/council/audit-logs', icon: ShieldCheck },
     ],
   },
 ];

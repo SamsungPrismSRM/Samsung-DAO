@@ -4,6 +4,7 @@ import { CouncilService } from '../services/council.service';
 import { GovernanceService } from '../services/governance.service';
 import { ElectionService } from '../services/election.service';
 import { EventService } from '../services/event.service';
+import { auditService } from '../services/audit.service';
 
 const prisma = new PrismaClient();
 
@@ -44,6 +45,14 @@ export const CouncilController = {
       const rule = await GovernanceService.updateRule(key, String(value), user.id);
       const io = req.app.get('io');
       io?.emit('rule_updated', rule);
+      void auditService.logAction({
+        userId: user.id,
+        action: 'RULE_UPDATED',
+        entityType: 'GOVERNANCE_RULE',
+        entityId: key,
+        metadata: { key, value: String(value) },
+        ipAddress: req.ip,
+      });
       res.json(rule);
     } catch (e) {
       console.error('updateRule:', e);
@@ -73,6 +82,14 @@ export const CouncilController = {
       const config = await GovernanceService.updateVotingConfig(key, String(value));
       const io = req.app.get('io');
       io?.emit('voting_config_updated', config);
+      void auditService.logAction({
+        userId: user.id,
+        action: 'VOTING_CONFIG_UPDATED',
+        entityType: 'VOTING_CONFIG',
+        entityId: key,
+        metadata: { key, value: String(value) },
+        ipAddress: req.ip,
+      });
       res.json(config);
     } catch (e) {
       console.error('updateVotingConfig:', e);
@@ -97,6 +114,14 @@ export const CouncilController = {
       const election = await ElectionService.create({ ...req.body, createdBy: user.id });
       const io = req.app.get('io');
       io?.emit('election_created', election);
+      void auditService.logAction({
+        userId: user.id,
+        action: 'ELECTION_CREATED',
+        entityType: 'ELECTION',
+        entityId: election.id,
+        metadata: { title: election.title, status: election.status },
+        ipAddress: req.ip,
+      });
       res.status(201).json(election);
     } catch (e) {
       console.error('createElection:', e);
@@ -115,6 +140,14 @@ export const CouncilController = {
       });
       const io = req.app.get('io');
       io?.emit('proposal_updated', proposal);
+      void auditService.logAction({
+        userId: user.id,
+        action: 'PROPOSAL_APPROVED',
+        entityType: 'PROPOSAL',
+        entityId: proposal.id,
+        metadata: { title: proposal.title, previousStatus: 'REVIEW' },
+        ipAddress: req.ip,
+      });
       res.json(proposal);
     } catch (e) {
       console.error('approveProposal:', e);
@@ -132,6 +165,14 @@ export const CouncilController = {
       });
       const io = req.app.get('io');
       io?.emit('proposal_updated', proposal);
+      void auditService.logAction({
+        userId: user.id,
+        action: 'PROPOSAL_REJECTED',
+        entityType: 'PROPOSAL',
+        entityId: proposal.id,
+        metadata: { title: proposal.title, reason: req.body?.reason ?? null },
+        ipAddress: req.ip,
+      });
       res.json(proposal);
     } catch (e) {
       console.error('rejectProposal:', e);
@@ -156,6 +197,14 @@ export const CouncilController = {
       const giveaway = await EventService.createGiveaway({ ...req.body, createdBy: user.id });
       const io = req.app.get('io');
       io?.emit('giveaway_created', giveaway);
+      void auditService.logAction({
+        userId: user.id,
+        action: 'GIVEAWAY_CREATED',
+        entityType: 'GIVEAWAY',
+        entityId: giveaway.id,
+        metadata: { title: giveaway.title, prize: giveaway.prize },
+        ipAddress: req.ip,
+      });
       res.status(201).json(giveaway);
     } catch (e) {
       console.error('createGiveaway:', e);
@@ -180,6 +229,14 @@ export const CouncilController = {
       const lottery = await EventService.createLottery({ ...req.body, createdBy: user.id });
       const io = req.app.get('io');
       io?.emit('lottery_created', lottery);
+      void auditService.logAction({
+        userId: user.id,
+        action: 'LOTTERY_CREATED',
+        entityType: 'LOTTERY',
+        entityId: lottery.id,
+        metadata: { title: lottery.title, prize: lottery.prize },
+        ipAddress: req.ip,
+      });
       res.status(201).json(lottery);
     } catch (e) {
       console.error('createLottery:', e);

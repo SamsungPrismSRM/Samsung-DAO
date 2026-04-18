@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
+import { auditService } from '../services/audit.service';
 // import { pinToIPFS } from '../utils/ipfs'; // Assuming this utility exists
 
 const prisma = new PrismaClient();
@@ -60,15 +61,14 @@ export const ProposalController = {
           created_by: user.id 
         }
       });
-      
-      // Audit Log
-      await prisma.auditLog.create({
-        data: {
-          user_id: user.id,
-          action: 'CREATED_DRAFT_PROPOSAL',
-          entity_type: 'PROPOSAL',
-          entity_id: proposal.id
-        }
+
+      void auditService.logAction({
+        userId: user.id,
+        action: 'PROPOSAL_CREATED',
+        entityType: 'PROPOSAL',
+        entityId: proposal.id,
+        metadata: { title, type },
+        ipAddress: req.ip,
       });
       
       // Notify clients
@@ -100,6 +100,15 @@ export const ProposalController = {
         where: { id: proposalId },
         data: { ipfs_cid: cid, status: 'ON_CHAIN_VOTE' }
       });
+
+      void auditService.logAction({
+        userId: proposal.created_by,
+        action: 'PROPOSAL_PUBLISHED',
+        entityType: 'PROPOSAL',
+        entityId: proposalId,
+        metadata: { ipfs_cid: cid, newStatus: 'ON_CHAIN_VOTE' },
+        ipAddress: req.ip,
+      });
       
       const io = req.app.get('io');
       if (io) io.emit('proposal_updated', proposalId);
@@ -129,6 +138,15 @@ export const ProposalController = {
           vote_type: voteType,
           voting_power: 100 // Should ideally be calculated based on snapshot block
         }
+      });
+
+      void auditService.logAction({
+        userId: wallet.user_id,
+        action: 'SIGNALING_VOTE_CAST',
+        entityType: 'PROPOSAL',
+        entityId: proposalId,
+        metadata: { voteType, walletAddress, voting_power: 100 },
+        ipAddress: req.ip,
       });
       
       const io = req.app.get('io');

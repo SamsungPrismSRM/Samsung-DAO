@@ -41,6 +41,7 @@ import ElectionSetup from "./pages/council/ElectionSetup";
 import VotingConfigPage from "./pages/council/VotingConfigPage";
 import GiveawaySetup from "./pages/council/GiveawaySetup";
 import LotteryConfig from "./pages/council/LotteryConfig";
+import AuditLogs from "./pages/council/AuditLogs";
 
 const queryClient = new QueryClient();
 
@@ -79,6 +80,7 @@ const App = () => (
               <Route path="voting" element={<VotingConfigPage />} />
               <Route path="giveaways" element={<GiveawaySetup />} />
               <Route path="lotteries" element={<LotteryConfig />} />
+              <Route path="audit-logs" element={<AuditLogs />} />
             </Route>
 
             <Route path="/member" element={<MemberLayout />}>
